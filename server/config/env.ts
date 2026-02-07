@@ -10,4 +10,6 @@ export const env = {
   DB_PASSWORD: process.env.DB_PASSWORD || '',
   JWT_SECRET: process.env.JWT_SECRET || 'odoopulse_hackathon_secret_2026',
   PORT: parseInt(process.env.PORT || '3001'),
+  CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  NODE_ENV: process.env.NODE_ENV || 'development',
 };
