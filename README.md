@@ -7,6 +7,9 @@
 
 ## Table of Contents
 
+- [Hackathon Rules & Constraints](#hackathon-rules--constraints)
+- [Core Differentiator](#core-differentiator)
+- [Lifecycle State Machines](#lifecycle-state-machines)
 - [Overview](#overview)
 - [Tech Stack](#tech-stack)
 - [Features](#features)
@@ -15,9 +18,115 @@
 - [Component Architecture](#component-architecture)
 - [Design System](#design-system)
 - [Mock Data Models](#mock-data-models)
+- [Team Work Split (4 Members)](#team-work-split-4-members)
+- [Git Workflow](#git-workflow)
 - [Getting Started](#getting-started)
 - [Scripts](#scripts)
 - [Team](#team)
+
+---
+
+## Hackathon Rules & Constraints
+
+> **These rules are NON-NEGOTIABLE. Every contributor must read before writing any code.**
+
+### Technology Rules
+- **PostgreSQL ONLY** for database — no MongoDB, Firebase, Supabase, or NoSQL
+- SQL-first approach with normalized schema (3NF)
+- Backend: **Modular Monolith** architecture
+- Strict layering: `Controllers → Services → Repositories → Database`
+- Business logic lives ONLY in **Services**
+- Repositories contain ONLY SQL / DB access logic
+- **No blockchain** (explicitly disallowed)
+- Entry-level encryption only: password hashing (bcrypt), secure tokens — no advanced crypto
+
+### Scope Rules
+- Do NOT add features beyond the problem statement
+- Do NOT invent new modules or hype features (AI decisions, ML, blockchain)
+- One strong feature > many weak features
+- Focus on **correctness** of existing features
+
+### AI Usage Rules
+- AI can ONLY: explain insights in business language, summarize system behavior
+- AI must NOT: perform financial calculations, change states, decide business rules, control workflows
+- All decisions must be **deterministic and rule-based**
+
+### Database & Data Integrity Rules
+- Schema must use: ENUMs, FOREIGN KEYS, CHECK constraints, UNIQUE constraints
+- Status transitions enforced in service logic
+- Historical data must **never** be recalculated
+- **No hard deletes** for financial records (soft delete only)
+- Retry limits enforced at service + DB level
+
+### Frontend Rules (Phase 1 — COMPLETED ✅)
+- UI-only implementation (static/mock data)
+- No API calls, no backend assumptions, no real auth
+- Navigation and layout complete
+- Status badges mandatory everywhere
+- Admin and Customer portals clearly separated
+
+### Design & UX Rules
+- Clean, professional, ERP-style UI — no flashy animations
+- Clarity > creativity
+- UI must visually communicate lifecycle states
+
+### Judging Mindset
+- Correctness > complexity
+- Lifecycle logic > UI polish
+- Explainable automation > black-box intelligence
+- Every feature must be explainable in **under 60 seconds**
+- System must feel **enterprise-ready**, not demo-only
+
+---
+
+## Core Differentiator
+
+### 🎯 Failed Payment Recovery Automation
+
+This is the **PRIMARY feature** that differentiates OdooPulse from other submissions.
+
+**How it works:**
+1. Payment fails → Invoice marked `FAILED` → Subscription moves to `AT_RISK`
+2. System tracks `retry_count` and `last_retry_date` per invoice
+3. Auto-retry up to **3 attempts** with idempotent logic
+4. Successful retry → Invoice `PAID` → Subscription back to `ACTIVE`
+5. All 3 retries fail → Subscription `CLOSED` (cannot auto-reactivate)
+
+**Hard Rules:**
+- Paid invoices must NEVER be retried
+- Retry must be idempotent (same result if called multiple times)
+- Retry logic must be explicit, auditable, and explainable
+- CLOSED subscriptions cannot auto-reactivate
+
+---
+
+## Lifecycle State Machines
+
+### Invoice Status Flow
+```
+DRAFT → CONFIRMED → FAILED → PAID
+                       ↓
+              (retry ≤ 3 times)
+                       ↓
+               PAID (success)
+```
+
+### Subscription Status Flow
+```
+DRAFT → QUOTATION → ACTIVE → AT_RISK → CLOSED
+                       ↑         ↓
+                       └── PAID ──┘  (recovery success)
+```
+
+**Transition Rules:**
+| Trigger | From | To |
+|---------|------|----|
+| Payment fails | Invoice: CONFIRMED | Invoice: FAILED |
+| Invoice fails | Subscription: ACTIVE | Subscription: AT_RISK |
+| Retry succeeds | Invoice: FAILED | Invoice: PAID |
+| Invoice paid | Subscription: AT_RISK | Subscription: ACTIVE |
+| Retry limit (3) hit | Subscription: AT_RISK | Subscription: CLOSED |
+| Quote accepted | Subscription: QUOTATION | Subscription: ACTIVE |
 
 ---
 
@@ -37,6 +146,9 @@ Built from scratch in a 24-hour hackathon with a team of 4 developers.
 
 | Layer | Technology | Version |
 |-------|-----------|---------|
+### Frontend
+| Layer | Technology | Version |
+|-------|-----------|----------|
 | **Framework** | React | 18.3 |
 | **Build Tool** | Vite | 5.4 |
 | **Language** | TypeScript | 5.8 |
@@ -51,6 +163,17 @@ Built from scratch in a 24-hour hackathon with a team of 4 developers.
 | **Animations** | tailwindcss-animate | 1.0 |
 | **Date Utils** | date-fns | 3.6 |
 | **Testing** | Vitest + Testing Library | 3.2 |
+
+### Backend (Phase 2 — To Be Implemented)
+| Layer | Technology | Notes |
+|-------|-----------|-------|
+| **Runtime** | Node.js + TypeScript | Same language as frontend |
+| **Framework** | Express.js or Fastify | REST API |
+| **Database** | PostgreSQL | ONLY allowed DB |
+| **ORM/Query** | Prisma or raw SQL (pg) | Type-safe queries |
+| **Auth** | bcrypt + JWT | Password hashing + tokens |
+| **Validation** | Zod | Shared with frontend |
+| **Architecture** | Modular Monolith | Controllers → Services → Repositories |
 
 ### Key Libraries
 
@@ -346,6 +469,176 @@ npm run preview
 | `lint` | `eslint .` | Run ESLint |
 | `test` | `vitest run` | Run tests once |
 | `test:watch` | `vitest` | Run tests in watch mode |
+
+---
+
+## Team Work Split (4 Members)
+
+### Current Status
+- ✅ **Phase 1 DONE** — Full UI with 22 routes, layouts, components, mock data
+- ⏳ **Phase 2 NEXT** — Backend, database, API integration
+
+### Member Assignments
+
+#### 👤 Member 1 — Database & Schema (backend/db)
+**Branch:** `feature/db-schema`
+
+**Responsibilities:**
+- PostgreSQL schema design (all tables, ENUMs, constraints, FKs)
+- Seed data scripts
+- Migration files
+- Tables: `users`, `products`, `product_variants`, `subscriptions`, `invoices`, `payments`, `payment_retries`, `quotations`, `discounts`, `tax_rules`, `addresses`, `cart_items`, `orders`, `order_items`
+
+**Key constraints to enforce:**
+- ENUMs for all status fields (invoice_status, subscription_status, payment_status, etc.)
+- CHECK constraints on retry_count (max 3), amounts (> 0)
+- FOREIGN KEY cascades
+- `deleted_at` column for soft deletes on financial records
+- `created_at`, `updated_at` timestamps on every table
+
+**Deliverable:** Working `schema.sql` + `seed.sql` that can be run on any PostgreSQL instance
+
+---
+
+#### 👤 Member 2 — Core Backend APIs (backend/api)
+**Branch:** `feature/api-core`
+
+**Responsibilities:**
+- Express/Fastify server setup
+- Modular Monolith folder structure:
+  ```
+  server/
+  ├── modules/
+  │   ├── auth/       (controller, service, repository)
+  │   ├── products/   (controller, service, repository)
+  │   ├── subscriptions/ (controller, service, repository)
+  │   ├── invoices/   (controller, service, repository)
+  │   └── payments/   (controller, service, repository)
+  ├── middleware/     (auth, error handling, validation)
+  ├── config/         (db connection, env)
+  └── index.ts        (entry point)
+  ```
+- CRUD APIs for: Products, Subscriptions, Invoices, Users
+- Auth: signup, login, JWT middleware
+- Input validation with Zod
+
+**Deliverable:** Working REST API with Postman/Thunder Client collection
+
+---
+
+#### 👤 Member 3 — Payment Recovery Engine (backend/recovery)
+**Branch:** `feature/payment-recovery`
+
+**Responsibilities:**
+- **THE core differentiator** — this must be demo-perfect
+- Payment processing simulation (mock gateway)
+- Failed payment detection
+- Auto-retry engine with rules:
+  - Max 3 retries per invoice
+  - Idempotent retry logic
+  - Track `retry_count`, `last_retry_date`, `next_retry_date`
+  - Paid invoices must NEVER be retried
+- State transitions:
+  - Payment fail → Invoice FAILED → Subscription AT_RISK
+  - Retry success → Invoice PAID → Subscription ACTIVE
+  - Retry limit hit → Subscription CLOSED
+- Recovery analytics API (for dashboard KPIs)
+- Audit log for every retry attempt
+
+**Deliverable:** Working `/api/payments/retry/:invoiceId` + `/api/recovery/dashboard` endpoints
+
+---
+
+#### 👤 Member 4 — Frontend Integration & Polish (frontend/integration)
+**Branch:** `feature/frontend-integration`
+
+**Responsibilities:**
+- Connect all UI pages to backend APIs (replace mock data)
+- API service layer (`src/services/*.ts`) using TanStack React Query
+- Auth flow: login → store JWT → protected routes
+- Real-time status updates on admin dashboard
+- Loading states, error handling, toast notifications
+- Form submissions (checkout, profile, product CRUD)
+- Final UI polish and bug fixes
+- Demo preparation
+
+**Deliverable:** Fully integrated frontend hitting real APIs
+
+---
+
+### Integration Points
+
+```
+  Member 1 (DB)          Member 2 (API)          Member 3 (Recovery)      Member 4 (Frontend)
+  ─────────────          ──────────────          ───────────────────      ───────────────────
+  schema.sql ──────────→ Repositories use ──────→ Recovery service ──────→ API calls from UI
+  seed.sql               schema tables           uses invoice/sub         replaces mockData.ts
+                                                  repositories
+```
+
+**Integration order:**
+1. Member 1 delivers schema → Member 2 + 3 can start coding against it
+2. Member 2 delivers base APIs → Member 4 starts integration
+3. Member 3 delivers recovery engine → Member 4 integrates dashboard
+4. Final integration + demo prep (all 4)
+
+### Timeline (24 hrs)
+
+| Hour | Member 1 (DB) | Member 2 (API) | Member 3 (Recovery) | Member 4 (Frontend) |
+|------|--------------|----------------|---------------------|--------------------|
+| 0-2 | Schema design | Server setup + folder structure | Study retry logic + design | Create API service layer skeleton |
+| 2-6 | Schema + seed SQL | Auth + Products + Subscriptions API | Payment module + retry engine | Connect auth (login/signup) |
+| 6-10 | Indexes + optimization | Invoices + Quotations + remaining CRUD | Recovery dashboard API + audit log | Connect admin pages to APIs |
+| 10-14 | Help test + fix schema issues | API testing + edge cases | Integration with Member 2 APIs | Connect portal pages to APIs |
+| 14-18 | DB monitoring + query tuning | Bug fixes + API polish | Demo scenario scripting | Loading/error states + polish |
+| 18-22 | Support + help debug | Final integration | Final integration | Final integration |
+| 22-24 | ALL: Demo prep, presentation, README update |||||
+
+---
+
+## Git Workflow
+
+### Branches
+```
+main                    ← stable/demo-ready (protected, no direct commits)
+├── develop             ← integration branch (merge feature branches here)
+├── feature/db-schema           ← Member 1
+├── feature/api-core            ← Member 2
+├── feature/payment-recovery    ← Member 3
+└── feature/frontend-integration ← Member 4
+```
+
+### Rules
+- **NEVER** commit directly to `main`
+- Merge to `develop` first, test, then merge `develop` → `main`
+- Professional commit messages only:
+  - `feat: add subscription CRUD API`
+  - `fix: prevent retry on paid invoices`
+  - `refactor: extract payment service logic`
+  - `chore: add seed data for products`
+- **NO** commits like "final", "done", "hackathon fix", "asdf"
+
+### Workflow
+```bash
+# 1. Always pull latest develop before starting work
+git checkout develop
+git pull origin develop
+
+# 2. Create/switch to your feature branch
+git checkout -b feature/your-feature
+
+# 3. Work, commit frequently
+git add -A
+git commit -m "feat: add invoice status transitions"
+
+# 4. Push your branch
+git push origin feature/your-feature
+
+# 5. Create PR to develop (not main!)
+# Review → Merge → Test on develop
+
+# 6. When develop is stable → merge to main for demo
+```
 
 ---
 
