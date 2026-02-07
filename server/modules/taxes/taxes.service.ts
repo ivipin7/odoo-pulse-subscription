@@ -1,34 +1,18 @@
-import { taxesRepository } from './taxes.repository';
-import { CreateTaxRuleInput, UpdateTaxRuleInput } from './taxes.schema';
+import { TaxRepository } from './taxes.repository';
+import { AppError } from '../../middleware/errorHandler';
 
-export const taxesService = {
-  async getAllTaxRules(limit?: number, offset?: number) {
-    return taxesRepository.findAll(limit, offset);
+export const TaxService = {
+  async getAll() {
+    return TaxRepository.findAll();
   },
 
-  async getTaxRuleById(id: string) {
-    const rule = await taxesRepository.findById(id);
-    if (!rule) throw { status: 404, message: 'Tax rule not found' };
-    return rule;
+  async create(data: any) {
+    return TaxRepository.create(data);
   },
 
-  async createTaxRule(data: CreateTaxRuleInput) {
-    return taxesRepository.create(data);
-  },
-
-  async updateTaxRule(id: string, data: UpdateTaxRuleInput) {
-    const rule = await taxesRepository.findById(id);
-    if (!rule) throw { status: 404, message: 'Tax rule not found' };
-    return taxesRepository.update(id, data);
-  },
-
-  async deleteTaxRule(id: string) {
-    const rule = await taxesRepository.findById(id);
-    if (!rule) throw { status: 404, message: 'Tax rule not found' };
-    return taxesRepository.softDelete(id);
-  },
-
-  async calculateTax(amount: number, region: string) {
-    return taxesRepository.calculateTax(amount, region);
+  async update(id: number, data: any) {
+    const existing = await TaxRepository.findById(id);
+    if (!existing) throw new AppError('Tax rule not found', 404, 'NOT_FOUND');
+    return TaxRepository.update(id, data);
   },
 };

@@ -1,79 +1,65 @@
 import bcrypt from 'bcrypt';
-import jwt, { SignOptions } from 'jsonwebtoken';
-import { env } from '../../config/env';
+import jwt from 'jsonwebtoken';
 import { AuthRepository } from './auth.repository';
 import { RegisterInput, LoginInput } from './auth.schema';
-
-const jwtOptions: SignOptions = { expiresIn: env.JWT_EXPIRES_IN as any };
+import { AppError } from '../../middleware/errorHandler';
+import { env } from '../../config/env';
 
 export const AuthService = {
   async register(data: RegisterInput) {
-    // Check if email already exists
     const existing = await AuthRepository.findByEmail(data.email);
-    if (existing) {
-      throw { status: 409, code: 'CONFLICT', message: 'Email already registered' };
-    }
+    if (existing) throw new AppError('Email already registered', 409, 'CONFLICT');
 
-    // Hash password
-    const password_hash = await bcrypt.hash(data.password, 12);
-
-    // Create user
+    const password_hash = await bcrypt.hash(data.password, 10);
     const user = await AuthRepository.create({
       name: data.name,
       email: data.email,
       password_hash,
       phone: data.phone,
       company: data.company,
+      gst_number: data.gst_number,
     });
 
-    // Generate JWT
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
       env.JWT_SECRET,
-      jwtOptions
+      { expiresIn: '24h' }
     );
 
     return { user, token };
   },
 
   async login(data: LoginInput) {
-    // Find user
     const user = await AuthRepository.findByEmail(data.email);
-    if (!user) {
-      throw { status: 401, code: 'UNAUTHORIZED', message: 'Invalid email or password' };
-    }
+    if (!user) throw new AppError('Invalid email or password', 401, 'UNAUTHORIZED');
+    if (user.status === 'INACTIVE') throw new AppError('Account is deactivated', 403, 'FORBIDDEN');
 
-    // Verify password
     const valid = await bcrypt.compare(data.password, user.password_hash);
-    if (!valid) {
-      throw { status: 401, code: 'UNAUTHORIZED', message: 'Invalid email or password' };
-    }
+    if (!valid) throw new AppError('Invalid email or password', 401, 'UNAUTHORIZED');
 
-    // Check active status
-    if (user.status !== 'ACTIVE') {
-      throw { status: 403, code: 'FORBIDDEN', message: 'Account is deactivated' };
-    }
-
-    // Update last login
     await AuthRepository.updateLastLogin(user.id);
 
-    // Generate JWT
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
       env.JWT_SECRET,
-      jwtOptions
+      { expiresIn: '24h' }
     );
 
-    // Don't return password_hash
-    const { password_hash: _, ...safeUser } = user;
-    return { user: safeUser, token };
+    return {
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+      },
+      token,
+    };
   },
 
-  async getMe(userId: string) {
+  async getMe(userId: number) {
     const user = await AuthRepository.findById(userId);
-    if (!user) {
-      throw { status: 404, code: 'NOT_FOUND', message: 'User not found' };
-    }
+    if (!user) throw new AppError('User not found', 404, 'NOT_FOUND');
     return user;
   },
 };

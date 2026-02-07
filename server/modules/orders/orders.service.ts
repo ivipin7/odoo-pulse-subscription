@@ -1,28 +1,22 @@
-import { ordersRepository } from './orders.repository';
-import { CreateOrderInput, UpdateOrderStatusInput } from './orders.schema';
+import { OrderRepository } from './orders.repository';
+import { CreateOrderInput } from './orders.schema';
+import { AppError } from '../../middleware/errorHandler';
 
-export const ordersService = {
-  async getAllOrders(limit?: number, offset?: number) {
-    return ordersRepository.findAll(limit, offset);
+export const OrderService = {
+  async getAll(userId: number, role?: string) {
+    if (role && ['SUPER_ADMIN', 'ADMIN', 'MANAGER'].includes(role)) {
+      return OrderRepository.findAll();
+    }
+    return OrderRepository.findAll(userId);
   },
 
-  async getOrdersByUser(userId: string, limit?: number, offset?: number) {
-    return ordersRepository.findByUserId(userId, limit, offset);
-  },
-
-  async getOrderById(id: string) {
-    const order = await ordersRepository.findById(id);
-    if (!order) throw { status: 404, message: 'Order not found' };
+  async getById(id: number) {
+    const order = await OrderRepository.findById(id);
+    if (!order) throw new AppError('Order not found', 404, 'NOT_FOUND');
     return order;
   },
 
-  async createOrder(data: CreateOrderInput, userId: string) {
-    return ordersRepository.create(data, userId);
-  },
-
-  async updateOrderStatus(id: string, data: UpdateOrderStatusInput) {
-    const order = await ordersRepository.findById(id);
-    if (!order) throw { status: 404, message: 'Order not found' };
-    return ordersRepository.updateStatus(id, data.status);
+  async create(userId: number, data: CreateOrderInput) {
+    return OrderRepository.create(userId, data);
   },
 };

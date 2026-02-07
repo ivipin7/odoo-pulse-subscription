@@ -1,39 +1,30 @@
 import { Request, Response, NextFunction } from 'express';
 
-interface AppError {
-  status?: number;
-  code?: string;
-  message?: string;
-  details?: unknown;
-}
+export function errorHandler(err: any, _req: Request, res: Response, _next: NextFunction) {
+  console.error('❌ Error:', err.message || err);
 
-/**
- * Global error handler middleware.
- * Must be registered LAST with app.use(errorHandler).
- *
- * Standard error response:
- * {
- *   "success": false,
- *   "error": {
- *     "code": "VALIDATION_ERROR",
- *     "message": "Email is required",
- *     "details": [...]
- *   }
- * }
- */
-export function errorHandler(err: AppError, _req: Request, res: Response, _next: NextFunction) {
-  const status = err.status || 500;
+  const status = err.statusCode || 500;
   const code = err.code || 'INTERNAL_ERROR';
-  const message = err.message || 'Something went wrong';
-
-  console.error(`[${code}] ${message}`, err.details || '');
 
   res.status(status).json({
     success: false,
     error: {
       code,
-      message,
+      message: err.message || 'Something went wrong',
       ...(err.details ? { details: err.details } : {}),
     },
   });
+}
+
+export class AppError extends Error {
+  statusCode: number;
+  code: string;
+  details?: any;
+
+  constructor(message: string, statusCode = 400, code = 'BAD_REQUEST', details?: any) {
+    super(message);
+    this.statusCode = statusCode;
+    this.code = code;
+    this.details = details;
+  }
 }

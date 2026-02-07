@@ -1,30 +1,34 @@
-import bcrypt from 'bcrypt';
-import { profileRepository } from './profile.repository';
-import { UpdateProfileInput, ChangePasswordInput } from './profile.schema';
+import { ProfileRepository } from './profile.repository';
+import { UpdateProfileInput, CreateAddressInput } from './profile.schema';
+import { AppError } from '../../middleware/errorHandler';
 
-export const profileService = {
-  async getProfile(userId: string) {
-    const [profile, stats] = await Promise.all([
-      profileRepository.findById(userId),
-      profileRepository.getProfileStats(userId),
-    ]);
-    if (!profile) throw { status: 404, message: 'Profile not found' };
-    return { ...profile, stats };
+export const ProfileService = {
+  async getProfile(userId: number) {
+    const profile = await ProfileRepository.getProfile(userId);
+    if (!profile) throw new AppError('User not found', 404, 'NOT_FOUND');
+    return profile;
   },
 
-  async updateProfile(userId: string, data: UpdateProfileInput) {
-    return profileRepository.update(userId, data);
+  async updateProfile(userId: number, data: UpdateProfileInput) {
+    return ProfileRepository.updateProfile(userId, data);
   },
 
-  async changePassword(userId: string, data: ChangePasswordInput) {
-    const currentHash = await profileRepository.getPasswordHash(userId);
-    if (!currentHash) throw { status: 404, message: 'User not found' };
+  async getAddresses(userId: number) {
+    return ProfileRepository.getAddresses(userId);
+  },
 
-    const valid = await bcrypt.compare(data.current_password, currentHash);
-    if (!valid) throw { status: 400, message: 'Current password is incorrect' };
+  async addAddress(userId: number, data: CreateAddressInput) {
+    return ProfileRepository.addAddress(userId, data);
+  },
 
-    const newHash = await bcrypt.hash(data.new_password, 12);
-    await profileRepository.updatePassword(userId, newHash);
-    return { message: 'Password changed successfully' };
+  async updateAddress(id: number, userId: number, data: any) {
+    const result = await ProfileRepository.updateAddress(id, userId, data);
+    if (!result) throw new AppError('Address not found', 404, 'NOT_FOUND');
+    return result;
+  },
+
+  async deleteAddress(id: number, userId: number) {
+    await ProfileRepository.deleteAddress(id, userId);
+    return { message: 'Address deleted' };
   },
 };

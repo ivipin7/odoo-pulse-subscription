@@ -23,7 +23,7 @@ export const AuthController = {
 
   async getMe(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const user = await AuthService.getMe(req.user!.id as string);
+      const user = await AuthService.getMe(req.user!.id);
       res.json({ success: true, data: user });
     } catch (err) {
       next(err);

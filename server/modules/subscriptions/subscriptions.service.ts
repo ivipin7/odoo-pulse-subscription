@@ -1,57 +1,45 @@
 import { SubscriptionRepository } from './subscriptions.repository';
 import { CreateSubscriptionInput } from './subscriptions.schema';
+import { AppError } from '../../middleware/errorHandler';
 
-// Valid state transitions
+// Valid transitions enforced here (service layer owns business logic)
 const VALID_TRANSITIONS: Record<string, string[]> = {
   DRAFT: ['QUOTATION'],
   QUOTATION: ['ACTIVE'],
   ACTIVE: ['AT_RISK'],
   AT_RISK: ['ACTIVE', 'CLOSED'],
-  CLOSED: [],
 };
 
 export const SubscriptionService = {
-  async getAll(userId?: string, role?: string) {
-    // Admins see all; customers see only their own
-    if (role && ['ADMIN', 'SUPER_ADMIN', 'MANAGER'].includes(role)) {
+  async getAll(userId?: number, role?: string) {
+    // Admin roles see all, customers see only theirs
+    if (role && ['SUPER_ADMIN', 'ADMIN', 'MANAGER'].includes(role)) {
       return SubscriptionRepository.findAll();
     }
-    if (userId) return SubscriptionRepository.findByUserId(userId);
-    return SubscriptionRepository.findAll();
+    return SubscriptionRepository.findAll(userId);
   },
 
   async getById(id: number) {
     const sub = await SubscriptionRepository.findById(id);
-    if (!sub) throw { status: 404, code: 'NOT_FOUND', message: 'Subscription not found' };
+    if (!sub) throw new AppError('Subscription not found', 404, 'NOT_FOUND');
     return sub;
   },
 
   async create(data: CreateSubscriptionInput) {
-    const today = new Date();
-    const nextBilling = new Date(today);
-    if (data.billing_period === 'MONTHLY') nextBilling.setMonth(nextBilling.getMonth() + 1);
-    else if (data.billing_period === 'SEMI_ANNUAL') nextBilling.setMonth(nextBilling.getMonth() + 6);
-    else nextBilling.setFullYear(nextBilling.getFullYear() + 1);
-
-    return SubscriptionRepository.create({
-      ...data,
-      variant_id: data.variant_id,
-      start_date: today.toISOString().split('T')[0],
-      next_billing: nextBilling.toISOString().split('T')[0],
-    });
+    return SubscriptionRepository.create(data);
   },
 
   async updateStatus(id: number, newStatus: string) {
     const sub = await SubscriptionRepository.findById(id);
-    if (!sub) throw { status: 404, code: 'NOT_FOUND', message: 'Subscription not found' };
+    if (!sub) throw new AppError('Subscription not found', 404, 'NOT_FOUND');
 
-    const allowed = VALID_TRANSITIONS[sub.status] || [];
-    if (!allowed.includes(newStatus)) {
-      throw {
-        status: 400,
-        code: 'INVALID_TRANSITION',
-        message: `Cannot transition from ${sub.status} to ${newStatus}. Allowed: ${allowed.join(', ') || 'none'}`,
-      };
+    const allowed = VALID_TRANSITIONS[sub.status];
+    if (!allowed || !allowed.includes(newStatus)) {
+      throw new AppError(
+        `Cannot transition from ${sub.status} to ${newStatus}`,
+        400,
+        'INVALID_TRANSITION'
+      );
     }
 
     return SubscriptionRepository.updateStatus(id, newStatus);

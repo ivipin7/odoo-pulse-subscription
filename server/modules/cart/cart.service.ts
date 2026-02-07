@@ -1,33 +1,29 @@
-import { cartRepository } from './cart.repository';
-import { AddToCartInput, UpdateCartItemInput } from './cart.schema';
+import { CartRepository } from './cart.repository';
+import { AddCartItemInput, UpdateCartItemInput } from './cart.schema';
+import { AppError } from '../../middleware/errorHandler';
 
-export const cartService = {
-  async getCart(userId: string) {
-    const [items, totals] = await Promise.all([
-      cartRepository.findByUserId(userId),
-      cartRepository.getCartTotal(userId),
-    ]);
-    return {
-      items,
-      item_count: parseInt(totals.item_count, 10),
-      total_quantity: parseInt(totals.total_quantity, 10) || 0,
-      total_amount: parseFloat(totals.total_amount) || 0,
-    };
+export const CartService = {
+  async getCart(userId: number) {
+    return CartRepository.findByUser(userId);
   },
 
-  async addToCart(userId: string, data: AddToCartInput) {
-    return cartRepository.addItem(userId, data.product_id, data.variant_id || null, data.quantity);
+  async addItem(userId: number, data: AddCartItemInput) {
+    return CartRepository.addItem(userId, data);
   },
 
-  async updateCartItem(userId: string, itemId: string, data: UpdateCartItemInput) {
-    return cartRepository.updateQuantity(itemId, userId, data.quantity);
+  async updateItem(id: number, userId: number, data: UpdateCartItemInput) {
+    const item = await CartRepository.updateQuantity(id, userId, data.quantity);
+    if (!item) throw new AppError('Cart item not found', 404, 'NOT_FOUND');
+    return item;
   },
 
-  async removeFromCart(userId: string, itemId: string) {
-    return cartRepository.removeItem(itemId, userId);
+  async removeItem(id: number, userId: number) {
+    await CartRepository.removeItem(id, userId);
+    return { message: 'Item removed from cart' };
   },
 
-  async clearCart(userId: string) {
-    return cartRepository.clearCart(userId);
+  async clearCart(userId: number) {
+    await CartRepository.clearCart(userId);
+    return { message: 'Cart cleared' };
   },
 };

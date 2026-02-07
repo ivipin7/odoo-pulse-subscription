@@ -1,16 +1,13 @@
 import { Router } from 'express';
-import { ordersController } from './orders.controller';
-import { authenticate, authorize } from '../../middleware/auth';
+import { OrderController } from './orders.controller';
 import { validate } from '../../middleware/validate';
-import { createOrderSchema, updateOrderStatusSchema } from './orders.schema';
+import { authMiddleware } from '../../middleware/auth';
+import { createOrderSchema } from './orders.schema';
 
 const router = Router();
 
-router.use(authenticate);
-
-router.get('/', ordersController.getAll);
-router.get('/:id', ordersController.getById);
-router.post('/', validate(createOrderSchema), ordersController.create);
-router.patch('/:id/status', authorize('SUPER_ADMIN', 'ADMIN', 'MANAGER'), validate(updateOrderStatusSchema), ordersController.updateStatus);
+router.get('/', authMiddleware, OrderController.getAll);
+router.get('/:id', authMiddleware, OrderController.getById);
+router.post('/', authMiddleware, validate(createOrderSchema), OrderController.create);
 
 export default router;

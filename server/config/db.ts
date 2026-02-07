@@ -9,10 +9,19 @@ export const pool = new Pool({
   password: env.DB_PASSWORD,
 });
 
-// Test connection on startup
+let dbConnected = false;
+
 pool.query('SELECT NOW()')
-  .then(() => console.log('✅ PostgreSQL connected'))
-  .catch((err: Error) => {
+  .then(() => {
+    dbConnected = true;
+    console.log('✅ PostgreSQL connected');
+  })
+  .catch((err) => {
     console.error('❌ PostgreSQL connection failed:', err.message);
-    process.exit(1);
+    console.error('⚠️  Server will stay up but DB calls will fail.');
+    console.error('   → Edit server/.env with your real DB_PASSWORD');
+    console.error('   → Make sure PostgreSQL is running on localhost:5432');
+    console.error('   → Run: psql -U postgres -c "CREATE DATABASE odoopulse;"');
   });
+
+export { dbConnected };

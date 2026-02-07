@@ -3,9 +3,10 @@ import { z } from 'zod';
 export const createSubscriptionSchema = z.object({
   user_id: z.number().int().positive(),
   product_id: z.number().int().positive(),
-  variant_id: z.number().int().positive().optional(),
+  variant_id: z.number().int().positive().nullable().optional(),
   billing_period: z.enum(['MONTHLY', 'SEMI_ANNUAL', 'ANNUAL']).default('MONTHLY'),
   amount: z.number().positive(),
+  start_date: z.string().optional(),
 });
 
 export const updateStatusSchema = z.object({
