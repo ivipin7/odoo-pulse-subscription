@@ -1,46 +1,25 @@
-import { quotationsRepository } from './quotations.repository';
-import { CreateQuotationInput, UpdateQuotationStatusInput } from './quotations.schema';
+import { QuotationRepository } from './quotations.repository';
+import { CreateQuotationInput } from './quotations.schema';
+import { AppError } from '../../middleware/errorHandler';
 
-const VALID_TRANSITIONS: Record<string, string[]> = {
-  DRAFT: ['SENT'],
-  SENT: ['ACCEPTED', 'DECLINED', 'EXPIRED'],
-  ACCEPTED: ['CONVERTED'],
-};
-
-export const quotationsService = {
-  async getAllQuotations(limit?: number, offset?: number) {
-    return quotationsRepository.findAll(limit, offset);
+export const QuotationService = {
+  async getAll() {
+    return QuotationRepository.findAll();
   },
 
-  async getQuotationById(id: string) {
-    const quotation = await quotationsRepository.findById(id);
-    if (!quotation) throw { status: 404, message: 'Quotation not found' };
-    return quotation;
+  async getById(id: number) {
+    const q = await QuotationRepository.findById(id);
+    if (!q) throw new AppError('Quotation not found', 404, 'NOT_FOUND');
+    return q;
   },
 
-  async createQuotation(data: CreateQuotationInput) {
-    return quotationsRepository.create(data);
+  async create(data: CreateQuotationInput) {
+    return QuotationRepository.create(data);
   },
 
-  async updateQuotationStatus(id: string, data: UpdateQuotationStatusInput) {
-    const quotation = await quotationsRepository.findById(id);
-    if (!quotation) throw { status: 404, message: 'Quotation not found' };
-
-    const allowed = VALID_TRANSITIONS[quotation.status];
-    if (!allowed || !allowed.includes(data.status)) {
-      throw {
-        status: 400,
-        message: `Cannot transition from ${quotation.status} to ${data.status}. Allowed: ${allowed?.join(', ') || 'none'}`,
-      };
-    }
-
-    return quotationsRepository.updateStatus(id, data.status);
-  },
-
-  async deleteQuotation(id: string) {
-    const quotation = await quotationsRepository.findById(id);
-    if (!quotation) throw { status: 404, message: 'Quotation not found' };
-    if (quotation.status !== 'DRAFT') throw { status: 400, message: 'Only DRAFT quotations can be deleted' };
-    return quotationsRepository.softDelete(id);
+  async updateStatus(id: number, newStatus: string) {
+    const q = await QuotationRepository.findById(id);
+    if (!q) throw new AppError('Quotation not found', 404, 'NOT_FOUND');
+    return QuotationRepository.updateStatus(id, newStatus);
   },
 };

@@ -6,6 +6,7 @@ export const registerSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
   phone: z.string().optional(),
   company: z.string().optional(),
+  gst_number: z.string().optional(),
 });
 
 export const loginSchema = z.object({

@@ -1,17 +1,14 @@
 import { Router } from 'express';
-import { quotationsController } from './quotations.controller';
-import { authenticate, authorize } from '../../middleware/auth';
+import { QuotationController } from './quotations.controller';
 import { validate } from '../../middleware/validate';
+import { authMiddleware, adminOnly } from '../../middleware/auth';
 import { createQuotationSchema, updateQuotationStatusSchema } from './quotations.schema';
 
 const router = Router();
 
-router.use(authenticate);
-
-router.get('/', quotationsController.getAll);
-router.get('/:id', quotationsController.getById);
-router.post('/', authorize('SUPER_ADMIN', 'ADMIN', 'MANAGER'), validate(createQuotationSchema), quotationsController.create);
-router.patch('/:id/status', authorize('SUPER_ADMIN', 'ADMIN', 'MANAGER'), validate(updateQuotationStatusSchema), quotationsController.updateStatus);
-router.delete('/:id', authorize('SUPER_ADMIN', 'ADMIN'), quotationsController.remove);
+router.get('/', authMiddleware, QuotationController.getAll);
+router.get('/:id', authMiddleware, QuotationController.getById);
+router.post('/', authMiddleware, validate(createQuotationSchema), QuotationController.create);
+router.patch('/:id/status', authMiddleware, adminOnly, validate(updateQuotationStatusSchema), QuotationController.updateStatus);
 
 export default router;

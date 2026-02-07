@@ -1,52 +1,91 @@
 import { pool } from '../../config/db';
 
-export const profileRepository = {
-  async findById(id: string) {
-    const result = await pool.query(
-      `SELECT id, name, email, phone, company, role, gst_number, avatar_url,
-              is_active, created_at, updated_at, last_login
+export const ProfileRepository = {
+  async getProfile(userId: number) {
+    const userResult = await pool.query(
+      `SELECT id, name, email, phone, company, gst_number, role, status, created_at
        FROM users WHERE id = $1`,
-      [id]
+      [userId]
+    );
+    const user = userResult.rows[0] || null;
+    if (!user) return null;
+
+    const addrResult = await pool.query(
+      'SELECT * FROM addresses WHERE user_id = $1 ORDER BY is_default DESC, created_at DESC',
+      [userId]
+    );
+    return { ...user, addresses: addrResult.rows };
+  },
+
+  async updateProfile(userId: number, data: any) {
+    const fields: string[] = [];
+    const values: any[] = [];
+    let idx = 1;
+
+    for (const [key, val] of Object.entries(data)) {
+      if (val !== undefined) {
+        fields.push(`${key} = $${idx++}`);
+        values.push(val);
+      }
+    }
+    if (fields.length === 0) return this.getProfile(userId);
+
+    values.push(userId);
+    await pool.query(
+      `UPDATE users SET ${fields.join(', ')} WHERE id = $${idx}`,
+      values
+    );
+    return this.getProfile(userId);
+  },
+
+  async getAddresses(userId: number) {
+    const result = await pool.query(
+      'SELECT * FROM addresses WHERE user_id = $1 ORDER BY is_default DESC, created_at DESC',
+      [userId]
+    );
+    return result.rows;
+  },
+
+  async addAddress(userId: number, data: any) {
+    // If setting as default, clear existing default
+    if (data.is_default) {
+      await pool.query('UPDATE addresses SET is_default = FALSE WHERE user_id = $1', [userId]);
+    }
+
+    const result = await pool.query(
+      `INSERT INTO addresses (user_id, label, line1, line2, city, state, pin_code, is_default)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [userId, data.label, data.line1, data.line2 || null, data.city, data.state, data.pin_code, data.is_default]
+    );
+    return result.rows[0];
+  },
+
+  async updateAddress(id: number, userId: number, data: any) {
+    if (data.is_default) {
+      await pool.query('UPDATE addresses SET is_default = FALSE WHERE user_id = $1', [userId]);
+    }
+
+    const fields: string[] = [];
+    const values: any[] = [];
+    let idx = 1;
+
+    for (const [key, val] of Object.entries(data)) {
+      if (val !== undefined) {
+        fields.push(`${key} = $${idx++}`);
+        values.push(val);
+      }
+    }
+    if (fields.length === 0) return null;
+
+    values.push(id, userId);
+    const result = await pool.query(
+      `UPDATE addresses SET ${fields.join(', ')} WHERE id = $${idx} AND user_id = $${idx + 1} RETURNING *`,
+      values
     );
     return result.rows[0] || null;
   },
 
-  async update(id: string, data: Record<string, any>) {
-    const fields = Object.keys(data);
-    const values = Object.values(data);
-    const setClause = fields.map((f, i) => `${f} = $${i + 2}`).join(', ');
-
-    const result = await pool.query(
-      `UPDATE users SET ${setClause}, updated_at = NOW() WHERE id = $1
-       RETURNING id, name, email, phone, company, role, gst_number, avatar_url, created_at, updated_at`,
-      [id, ...values]
-    );
-    return result.rows[0];
-  },
-
-  async getPasswordHash(id: string) {
-    const result = await pool.query(
-      `SELECT password_hash FROM users WHERE id = $1`,
-      [id]
-    );
-    return result.rows[0]?.password_hash;
-  },
-
-  async updatePassword(id: string, hash: string) {
-    await pool.query(
-      `UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2`,
-      [hash, id]
-    );
-  },
-
-  async getProfileStats(userId: string) {
-    const result = await pool.query(`
-      SELECT 
-        (SELECT COUNT(*) FROM subscriptions WHERE user_id = $1 AND status = 'ACTIVE') as active_subscriptions,
-        (SELECT COUNT(*) FROM orders WHERE user_id = $1) as total_orders,
-        (SELECT COALESCE(SUM(total_amount), 0) FROM payments WHERE user_id = $1 AND status = 'SUCCESS') as total_spent,
-        (SELECT COUNT(*) FROM invoices WHERE user_id = $1 AND status = 'FAILED') as pending_invoices
-    `, [userId]);
-    return result.rows[0];
+  async deleteAddress(id: number, userId: number) {
+    await pool.query('DELETE FROM addresses WHERE id = $1 AND user_id = $2', [id, userId]);
   },
 };

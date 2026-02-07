@@ -12,9 +12,10 @@ dist
 dist-ssr
 *.local
 
-# Environment files
-.env
+# Server
 server/.env
+server/dist
+server/db/fix-passwords.js
 
 # Editor directories and files
 .vscode/*

@@ -1,24 +1,18 @@
 import { z } from 'zod';
 
-const quotationItemSchema = z.object({
-  product_id: z.string().uuid(),
-  variant_id: z.string().uuid().optional(),
-  quantity: z.number().int().min(1),
-  unit_price: z.number().positive(),
-});
-
 export const createQuotationSchema = z.object({
-  customer_id: z.string().uuid(),
-  items: z.array(quotationItemSchema).min(1),
-  billing_period: z.enum(['MONTHLY', 'QUARTERLY', 'YEARLY']),
-  discount_id: z.string().uuid().optional(),
-  notes: z.string().max(1000).optional(),
-  valid_until: z.string().datetime().optional(),
+  user_id: z.number().int().positive(),
+  items: z.array(z.object({
+    product_id: z.number().int().positive(),
+    variant_id: z.number().int().positive().nullable().optional(),
+    quantity: z.number().int().positive().default(1),
+    unit_price: z.number().positive(),
+  })).min(1),
+  valid_until: z.string(),
 });
 
 export const updateQuotationStatusSchema = z.object({
-  status: z.enum(['SENT', 'ACCEPTED', 'DECLINED', 'EXPIRED', 'CONVERTED']),
+  status: z.enum(['DRAFT', 'SENT', 'ACCEPTED', 'EXPIRED', 'REJECTED']),
 });
 
 export type CreateQuotationInput = z.infer<typeof createQuotationSchema>;
-export type UpdateQuotationStatusInput = z.infer<typeof updateQuotationStatusSchema>;

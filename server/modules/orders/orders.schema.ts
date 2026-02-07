@@ -1,21 +1,14 @@
 import { z } from 'zod';
 
-const orderItemSchema = z.object({
-  product_id: z.string().uuid(),
-  variant_id: z.string().uuid().optional(),
-  quantity: z.number().int().min(1),
-  unit_price: z.number().positive(),
-});
-
 export const createOrderSchema = z.object({
-  items: z.array(orderItemSchema).min(1),
-  billing_address: z.string().min(10).optional(),
-  notes: z.string().max(500).optional(),
-});
-
-export const updateOrderStatusSchema = z.object({
-  status: z.enum(['CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED']),
+  items: z.array(z.object({
+    product_id: z.number().int().positive(),
+    variant_id: z.number().int().positive().nullable().optional(),
+    quantity: z.number().int().positive().default(1),
+    unit_price: z.number().positive(),
+    billing_period: z.enum(['MONTHLY', 'SEMI_ANNUAL', 'ANNUAL']).default('MONTHLY'),
+  })).min(1, 'At least one item required'),
+  discount_amount: z.number().min(0).default(0),
 });
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
-export type UpdateOrderStatusInput = z.infer<typeof updateOrderStatusSchema>;

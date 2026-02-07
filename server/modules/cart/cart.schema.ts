@@ -1,14 +1,14 @@
 import { z } from 'zod';
 
-export const addToCartSchema = z.object({
-  product_id: z.string().uuid(),
-  variant_id: z.string().uuid().optional(),
-  quantity: z.number().int().min(1).default(1),
+export const addCartItemSchema = z.object({
+  product_id: z.number().int().positive(),
+  variant_id: z.number().int().positive().nullable().optional(),
+  quantity: z.number().int().positive().default(1),
 });
 
 export const updateCartItemSchema = z.object({
-  quantity: z.number().int().min(0), // 0 = remove
+  quantity: z.number().int().positive(),
 });
 
-export type AddToCartInput = z.infer<typeof addToCartSchema>;
+export type AddCartItemInput = z.infer<typeof addCartItemSchema>;
 export type UpdateCartItemInput = z.infer<typeof updateCartItemSchema>;

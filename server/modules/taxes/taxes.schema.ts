@@ -1,15 +1,15 @@
 import { z } from 'zod';
 
-export const createTaxRuleSchema = z.object({
-  name: z.string().min(2).max(100),
-  region: z.string().min(2).max(50),
-  tax_type: z.enum(['GST', 'IGST', 'CGST_SGST', 'VAT', 'SALES_TAX']),
+export const createTaxSchema = z.object({
+  name: z.string().min(2),
   rate: z.number().min(0).max(100),
-  is_active: z.boolean().default(true),
-  applicable_categories: z.array(z.string().uuid()).optional(),
+  type: z.enum(['GST', 'IGST', 'CGST_SGST', 'CESS']),
+  applicable_to: z.string().min(1),
+  region: z.string().min(1),
 });
 
-export const updateTaxRuleSchema = createTaxRuleSchema.partial();
+export const updateTaxSchema = createTaxSchema.partial().extend({
+  status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
+});
 
-export type CreateTaxRuleInput = z.infer<typeof createTaxRuleSchema>;
-export type UpdateTaxRuleInput = z.infer<typeof updateTaxRuleSchema>;
+export type CreateTaxInput = z.infer<typeof createTaxSchema>;

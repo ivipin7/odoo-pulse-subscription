@@ -1,218 +1,102 @@
 import { pool } from '../../config/db';
-import { paymentsRepository } from './payments.repository';
-import { ProcessPaymentInput, RetryPaymentInput } from './payments.schema';
+import { PaymentRepository } from './payments.repository';
+import { ProcessPaymentInput } from './payments.schema';
+import { AppError } from '../../middleware/errorHandler';
 
-const MAX_RETRIES = 3;
+export const PaymentService = {
+  async getAll(userId?: number, role?: string) {
+    if (role && ['SUPER_ADMIN', 'ADMIN', 'MANAGER'].includes(role)) {
+      return PaymentRepository.findAll();
+    }
+    return PaymentRepository.findAll(userId);
+  },
 
-/**
- * Simulate a payment gateway call.
- * In production, replace with real Razorpay/Stripe SDK.
- * Returns { success, transaction_ref, gateway_response }
- */
-async function simulatePaymentGateway(
-  amount: number,
-  method: string
-): Promise<{ success: boolean; transaction_ref: string; gateway_response: object; error?: string }> {
-  // Simulate ~70% success rate for demo
-  const success = Math.random() > 0.3;
-  const transaction_ref = `TXN_${Date.now()}_${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+  async getById(id: number) {
+    const payment = await PaymentRepository.findById(id);
+    if (!payment) throw new AppError('Payment not found', 404, 'NOT_FOUND');
+    return payment;
+  },
 
-  return {
-    success,
-    transaction_ref,
-    gateway_response: {
-      gateway: 'simulated',
-      amount,
-      method,
-      transaction_ref,
-      status: success ? 'captured' : 'failed',
-      timestamp: new Date().toISOString(),
-      failure_reason: success ? null : 'Insufficient funds',
-    },
-    error: success ? undefined : 'Payment gateway declined: Insufficient funds',
-  };
-}
-
-export const paymentsService = {
-  /**
-   * Process a new payment for an invoice.
-   */
-  async processPayment(data: ProcessPaymentInput, userId: string) {
-    // Get the invoice
-    const invoiceResult = await pool.query(
-      `SELECT * FROM invoices WHERE id = $1`,
-      [data.invoice_id]
-    );
-    const invoice = invoiceResult.rows[0];
-    if (!invoice) throw { status: 404, message: 'Invoice not found' };
-    if (invoice.status === 'PAID') throw { status: 400, message: 'Invoice is already paid' };
-    if (invoice.status === 'DRAFT') throw { status: 400, message: 'Invoice must be confirmed before payment' };
-
-    // Call payment gateway
-    const gatewayResult = await simulatePaymentGateway(
-      parseFloat(invoice.total_amount),
-      data.payment_method
-    );
-
-    const paymentStatus = gatewayResult.success ? 'SUCCESS' : 'FAILED';
-
-    // Create payment record
-    const payment = await paymentsRepository.create({
-      invoice_id: data.invoice_id,
-      user_id: userId,
-      amount: parseFloat(invoice.total_amount),
-      payment_method: data.payment_method,
-      status: paymentStatus,
-      transaction_ref: gatewayResult.transaction_ref,
-      gateway_response: gatewayResult.gateway_response,
+  async processPayment(data: ProcessPaymentInput) {
+    // Simulate gateway — Siva will enhance with retry engine
+    const success = Math.random() > 0.3;
+    const payment = await PaymentRepository.create({
+      ...data,
+      status: success ? 'SUCCESS' : 'FAILED',
     });
 
-    // Update invoice status
-    const newInvoiceStatus = gatewayResult.success ? 'PAID' : 'FAILED';
-    await pool.query(
-      `UPDATE invoices SET status = $1, updated_at = NOW() WHERE id = $2`,
-      [newInvoiceStatus, data.invoice_id]
-    );
-
-    // If payment failed and invoice is linked to a subscription, mark subscription AT_RISK
-    if (!gatewayResult.success && invoice.subscription_id) {
-      await pool.query(
-        `UPDATE subscriptions SET status = 'AT_RISK', updated_at = NOW()
-         WHERE id = $1 AND status = 'ACTIVE'`,
-        [invoice.subscription_id]
-      );
+    if (success) {
+      await pool.query("UPDATE invoices SET status = 'PAID' WHERE id = $1", [data.invoice_id]);
+    } else {
+      await pool.query("UPDATE invoices SET status = 'FAILED' WHERE id = $1 AND status = 'CONFIRMED'", [data.invoice_id]);
     }
 
-    // If payment succeeded and subscription was AT_RISK, restore to ACTIVE
-    if (gatewayResult.success && invoice.subscription_id) {
-      await pool.query(
-        `UPDATE subscriptions SET status = 'ACTIVE', updated_at = NOW()
-         WHERE id = $1 AND status = 'AT_RISK'`,
-        [invoice.subscription_id]
-      );
-    }
-
-    return {
-      payment,
-      invoice_status: newInvoiceStatus,
-      gateway_success: gatewayResult.success,
-      error: gatewayResult.error,
-    };
+    return payment;
   },
 
   /**
-   * ═══════════════════════════════════════════════════════════════
-   * CORE: Retry a failed payment with idempotency + row locking
-   * ═══════════════════════════════════════════════════════════════
-   * 
-   * This is THE critical feature for the hackathon.
-   * 
-   * Flow:
-   * 1. Acquire row lock on invoice (SELECT ... FOR UPDATE)
-   * 2. Validate: invoice must be FAILED, retry count < MAX_RETRIES
-   * 3. Call payment gateway
-   * 4. Log retry attempt in payment_retries table
-   * 5. If success: invoice → PAID, subscription → ACTIVE
-   * 6. If fail + retries exhausted: subscription → CLOSED
-   * 7. All within a single transaction for consistency
+   * Retry a failed payment — SIVA OWNS THIS (payment-recovery)
+   * Placeholder: Siva will implement the full transactional retry engine
    */
-  async retryPayment(invoiceId: string, data?: RetryPaymentInput) {
+  async retryPayment(invoiceId: number) {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
 
-      // Step 1: Lock the invoice row to prevent concurrent retries
-      const invoice = await paymentsRepository.lockInvoiceForRetry(invoiceId, client);
-      if (!invoice) {
-        throw { status: 404, message: 'Invoice not found' };
-      }
-
-      // Step 2: Validate state
-      if (invoice.status !== 'FAILED') {
-        throw { status: 400, message: `Cannot retry: invoice status is ${invoice.status}, expected FAILED` };
-      }
-
-      const retryCount = await paymentsRepository.getRetryCount(invoiceId);
-      if (retryCount >= MAX_RETRIES) {
-        throw { status: 400, message: `Maximum retry attempts (${MAX_RETRIES}) exhausted for this invoice` };
-      }
-
-      const attemptNumber = retryCount + 1;
-      const paymentMethod = data?.payment_method || 'CARD'; // Default to CARD
-
-      // Step 3: Call payment gateway
-      const gatewayResult = await simulatePaymentGateway(
-        parseFloat(invoice.total_amount),
-        paymentMethod
+      const invoiceResult = await client.query(
+        'SELECT * FROM invoices WHERE id = $1 FOR UPDATE',
+        [invoiceId]
       );
+      const invoice = invoiceResult.rows[0];
+      if (!invoice) throw new AppError('Invoice not found', 404, 'NOT_FOUND');
+      if (invoice.status === 'PAID') throw new AppError('Invoice already paid', 400, 'ALREADY_PAID');
+      if (invoice.status !== 'FAILED') throw new AppError('Only FAILED invoices can be retried', 400, 'INVALID_STATUS');
+      if (invoice.retry_count >= 3) throw new AppError('Max retry limit (3) reached', 400, 'RETRY_LIMIT');
 
-      // Step 4: Log retry attempt
+      const paymentSuccess = Math.random() > 0.4;
+      const attemptNumber = invoice.retry_count + 1;
+
       await client.query(
-        `INSERT INTO payment_retries (invoice_id, attempt_number, status, payment_method, gateway_response, error_message)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [
-          invoiceId,
-          attemptNumber,
-          gatewayResult.success ? 'SUCCESS' : 'FAILED',
-          paymentMethod,
-          JSON.stringify(gatewayResult.gateway_response),
-          gatewayResult.error || null,
-        ]
+        `INSERT INTO payment_retries (invoice_id, attempt_number, status, failure_reason)
+         VALUES ($1, $2, $3, $4)`,
+        [invoiceId, attemptNumber, paymentSuccess ? 'SUCCESS' : 'FAILED', paymentSuccess ? null : 'Simulated failure']
       );
 
-      if (gatewayResult.success) {
-        // Step 5a: Success → Invoice PAID, create payment record
+      if (paymentSuccess) {
         await client.query(
-          `UPDATE invoices SET status = 'PAID', updated_at = NOW() WHERE id = $1`,
-          [invoiceId]
+          `UPDATE invoices SET status = 'PAID', retry_count = $1, last_retry_at = NOW() WHERE id = $2`,
+          [attemptNumber, invoiceId]
         );
-
         await client.query(
-          `INSERT INTO payments (invoice_id, user_id, amount, payment_method, status, transaction_ref, gateway_response)
-           VALUES ($1, $2, $3, $4, 'SUCCESS', $5, $6)`,
-          [
-            invoiceId,
-            invoice.user_id,
-            invoice.total_amount,
-            paymentMethod,
-            gatewayResult.transaction_ref,
-            JSON.stringify(gatewayResult.gateway_response),
-          ]
+          `INSERT INTO payments (payment_ref, invoice_id, user_id, amount, method, status)
+           VALUES ($1, $2, $3, $4, 'UPI', 'SUCCESS')`,
+          [`PAY-RETRY-${invoiceId}-${attemptNumber}`, invoiceId, invoice.user_id, invoice.total_amount]
         );
-
-        // Restore subscription to ACTIVE if it was AT_RISK
-        if (invoice.subscription_id && invoice.subscription_status === 'AT_RISK') {
+        await client.query(
+          `UPDATE subscriptions SET status = 'ACTIVE' WHERE id = $1 AND status = 'AT_RISK'`,
+          [invoice.subscription_id]
+        );
+      } else {
+        await client.query(
+          `UPDATE invoices SET retry_count = $1, last_retry_at = NOW() WHERE id = $2`,
+          [attemptNumber, invoiceId]
+        );
+        if (attemptNumber >= 3) {
           await client.query(
-            `UPDATE subscriptions SET status = 'ACTIVE', updated_at = NOW() WHERE id = $1`,
-            [invoice.subscription_id]
-          );
-        }
-      } else if (attemptNumber >= MAX_RETRIES) {
-        // Step 6: All retries exhausted → close subscription
-        if (invoice.subscription_id) {
-          await client.query(
-            `UPDATE subscriptions SET status = 'CLOSED', closed_reason = 'payment_failure', updated_at = NOW()
-             WHERE id = $1`,
+            `UPDATE subscriptions SET status = 'CLOSED', closed_at = NOW() WHERE id = $1 AND status = 'AT_RISK'`,
             [invoice.subscription_id]
           );
         }
       }
 
       await client.query('COMMIT');
-
       return {
-        success: gatewayResult.success,
-        attempt_number: attemptNumber,
-        max_retries: MAX_RETRIES,
-        retries_remaining: MAX_RETRIES - attemptNumber,
-        invoice_status: gatewayResult.success ? 'PAID' : 'FAILED',
-        subscription_status: gatewayResult.success
-          ? 'ACTIVE'
-          : attemptNumber >= MAX_RETRIES
-          ? 'CLOSED'
-          : 'AT_RISK',
-        transaction_ref: gatewayResult.transaction_ref,
-        error: gatewayResult.error,
+        invoiceId,
+        attempt: attemptNumber,
+        success: paymentSuccess,
+        invoiceStatus: paymentSuccess ? 'PAID' : 'FAILED',
+        subscriptionStatus: paymentSuccess ? 'ACTIVE' : (attemptNumber >= 3 ? 'CLOSED' : 'AT_RISK'),
+        retriesRemaining: 3 - attemptNumber,
       };
     } catch (err) {
       await client.query('ROLLBACK');
@@ -222,58 +106,49 @@ export const paymentsService = {
     }
   },
 
-  async getAllPayments(limit?: number, offset?: number) {
-    return paymentsRepository.findAll(limit, offset);
-  },
-
-  async getPaymentsByUser(userId: string, limit?: number, offset?: number) {
-    return paymentsRepository.findByUserId(userId, limit, offset);
-  },
-
-  async getPaymentById(id: string) {
-    const payment = await paymentsRepository.findById(id);
-    if (!payment) throw { status: 404, message: 'Payment not found' };
-    return payment;
-  },
-
-  async getPaymentsByInvoice(invoiceId: string) {
-    return paymentsRepository.findByInvoiceId(invoiceId);
-  },
-
-  async getRetryHistory(invoiceId: string) {
-    return paymentsRepository.getRetriesByInvoiceId(invoiceId);
-  },
-
-  // ── Recovery Dashboard ─────────────────────────────────────────
-
+  /** Recovery Dashboard KPIs */
   async getRecoveryDashboard() {
-    const [stats, atRisk, timeline] = await Promise.all([
-      paymentsRepository.getRecoveryStats(),
-      paymentsRepository.getAtRiskSubscriptions(),
-      paymentsRepository.getRecoveryTimeline(),
-    ]);
-
-    return {
-      stats: {
-        failed_invoices: parseInt(stats.failed_invoices, 10),
-        recovered_invoices: parseInt(stats.recovered_invoices, 10),
-        at_risk_revenue: parseFloat(stats.at_risk_revenue),
-        recovered_revenue: parseFloat(stats.recovered_revenue),
-        at_risk_subscriptions: parseInt(stats.at_risk_subscriptions, 10),
-        recovery_rate: stats.failed_invoices > 0
-          ? ((parseInt(stats.recovered_invoices, 10) / (parseInt(stats.failed_invoices, 10) + parseInt(stats.recovered_invoices, 10))) * 100).toFixed(1)
-          : '0.0',
-      },
-      at_risk_subscriptions: atRisk,
-      recovery_timeline: timeline,
-    };
+    const result = await pool.query(`
+      SELECT
+        (SELECT COUNT(*) FROM invoices WHERE status = 'FAILED') as failed_count,
+        (SELECT COUNT(*) FROM subscriptions WHERE status = 'AT_RISK') as at_risk_count,
+        (SELECT COUNT(*) FROM payment_retries WHERE status = 'SUCCESS') as recovered_count,
+        (SELECT COALESCE(SUM(total_amount), 0) FROM invoices WHERE status = 'FAILED') as revenue_at_risk,
+        (SELECT COALESCE(SUM(i.total_amount), 0)
+         FROM invoices i
+         JOIN payment_retries pr ON pr.invoice_id = i.id
+         WHERE pr.status = 'SUCCESS') as revenue_recovered
+    `);
+    return result.rows[0];
   },
 
-  async getAtRiskSubscriptions(limit?: number) {
-    return paymentsRepository.getAtRiskSubscriptions(limit);
+  /** At-risk subscriptions */
+  async getAtRiskSubscriptions() {
+    const result = await pool.query(`
+      SELECT s.*, u.name as customer_name, u.email,
+        p.name as product_name,
+        i.id as invoice_id, i.invoice_number, i.retry_count, i.total_amount,
+        i.last_retry_at
+      FROM subscriptions s
+      JOIN users u ON s.user_id = u.id
+      JOIN products p ON s.product_id = p.id
+      LEFT JOIN invoices i ON i.subscription_id = s.id AND i.status = 'FAILED'
+      WHERE s.status = 'AT_RISK'
+      ORDER BY i.retry_count DESC, s.updated_at DESC
+    `);
+    return result.rows;
   },
 
-  async getRecoveryTimeline(days?: number) {
-    return paymentsRepository.getRecoveryTimeline(days);
+  /** Recovery timeline audit log */
+  async getRecoveryTimeline() {
+    const result = await pool.query(`
+      SELECT pr.*, i.invoice_number, u.name as customer_name
+      FROM payment_retries pr
+      JOIN invoices i ON pr.invoice_id = i.id
+      JOIN users u ON i.user_id = u.id
+      ORDER BY pr.attempted_at DESC
+      LIMIT 20
+    `);
+    return result.rows;
   },
 };

@@ -1,5 +1,6 @@
 import { ProductRepository } from './products.repository';
 import { CreateProductInput, UpdateProductInput } from './products.schema';
+import { AppError } from '../../middleware/errorHandler';
 
 export const ProductService = {
   async getAllProducts() {
@@ -8,44 +9,24 @@ export const ProductService = {
 
   async getProductById(id: number) {
     const product = await ProductRepository.findById(id);
-    if (!product) throw { status: 404, code: 'NOT_FOUND', message: 'Product not found' };
+    if (!product) throw new AppError('Product not found', 404, 'NOT_FOUND');
     return product;
   },
 
   async createProduct(data: CreateProductInput) {
-    const product = await ProductRepository.create({
-      name: data.name,
-      description: data.description,
-      base_price: data.base_price,
-      category_id: data.category_id,
-      billing_period: data.billing_period,
-    });
-
-    // Create variants if provided
-    if (data.variants?.length) {
-      for (const variant of data.variants) {
-        await ProductRepository.createVariant(product.id, variant);
-      }
-    }
-
-    return ProductRepository.findById(product.id);
+    return ProductRepository.create(data);
   },
 
   async updateProduct(id: number, data: UpdateProductInput) {
     const existing = await ProductRepository.findById(id);
-    if (!existing) throw { status: 404, code: 'NOT_FOUND', message: 'Product not found' };
-
-    const { variants, ...productData } = data;
-    return ProductRepository.update(id, productData);
+    if (!existing) throw new AppError('Product not found', 404, 'NOT_FOUND');
+    return ProductRepository.update(id, data);
   },
 
   async deleteProduct(id: number) {
-    const product = await ProductRepository.findById(id);
-    if (!product) throw { status: 404, code: 'NOT_FOUND', message: 'Product not found' };
+    const existing = await ProductRepository.findById(id);
+    if (!existing) throw new AppError('Product not found', 404, 'NOT_FOUND');
     await ProductRepository.softDelete(id);
-  },
-
-  async getCategories() {
-    return ProductRepository.findCategories();
+    return { message: 'Product deleted' };
   },
 };

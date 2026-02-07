@@ -1,52 +1,32 @@
 import { Request, Response, NextFunction } from 'express';
-import { quotationsService } from './quotations.service';
-import { AuthRequest } from '../../middleware/auth';
+import { QuotationService } from './quotations.service';
 
-export const quotationsController = {
-  async getAll(req: AuthRequest, res: Response, next: NextFunction) {
+export const QuotationController = {
+  async getAll(req: Request, res: Response, next: NextFunction) {
     try {
-      const limit = parseInt(req.query.limit as string) || 50;
-      const offset = parseInt(req.query.offset as string) || 0;
-      const quotations = await quotationsService.getAllQuotations(limit, offset);
-      res.json({ success: true, data: quotations });
-    } catch (err) {
-      next(err);
-    }
+      const data = await QuotationService.getAll();
+      res.json({ success: true, data, total: data.length });
+    } catch (err) { next(err); }
   },
 
-  async getById(req: AuthRequest, res: Response, next: NextFunction) {
+  async getById(req: Request, res: Response, next: NextFunction) {
     try {
-      const quotation = await quotationsService.getQuotationById(req.params.id);
-      res.json({ success: true, data: quotation });
-    } catch (err) {
-      next(err);
-    }
+      const data = await QuotationService.getById(Number(req.params.id));
+      res.json({ success: true, data });
+    } catch (err) { next(err); }
   },
 
-  async create(req: AuthRequest, res: Response, next: NextFunction) {
+  async create(req: Request, res: Response, next: NextFunction) {
     try {
-      const quotation = await quotationsService.createQuotation(req.body);
-      res.status(201).json({ success: true, data: quotation });
-    } catch (err) {
-      next(err);
-    }
+      const data = await QuotationService.create(req.body);
+      res.status(201).json({ success: true, data });
+    } catch (err) { next(err); }
   },
 
-  async updateStatus(req: AuthRequest, res: Response, next: NextFunction) {
+  async updateStatus(req: Request, res: Response, next: NextFunction) {
     try {
-      const quotation = await quotationsService.updateQuotationStatus(req.params.id, req.body);
-      res.json({ success: true, data: quotation });
-    } catch (err) {
-      next(err);
-    }
-  },
-
-  async remove(req: AuthRequest, res: Response, next: NextFunction) {
-    try {
-      await quotationsService.deleteQuotation(req.params.id);
-      res.json({ success: true, message: 'Quotation deleted' });
-    } catch (err) {
-      next(err);
-    }
+      const data = await QuotationService.updateStatus(Number(req.params.id), req.body.status);
+      res.json({ success: true, data });
+    } catch (err) { next(err); }
   },
 };

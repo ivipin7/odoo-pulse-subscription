@@ -1,19 +1,10 @@
 import { z } from 'zod';
 
 export const processPaymentSchema = z.object({
-  invoice_id: z.string().uuid(),
-  payment_method: z.enum(['CARD', 'UPI', 'BANK_TRANSFER', 'WALLET']),
-  transaction_ref: z.string().optional(),
-});
-
-export const retryPaymentSchema = z.object({
-  payment_method: z.enum(['CARD', 'UPI', 'BANK_TRANSFER', 'WALLET']).optional(),
-});
-
-export const refundPaymentSchema = z.object({
-  reason: z.string().min(5).max(500),
+  invoice_id: z.number().int().positive(),
+  user_id: z.number().int().positive(),
+  amount: z.number().positive(),
+  method: z.enum(['UPI', 'CREDIT_CARD', 'DEBIT_CARD', 'NET_BANKING']),
 });
 
 export type ProcessPaymentInput = z.infer<typeof processPaymentSchema>;
-export type RetryPaymentInput = z.infer<typeof retryPaymentSchema>;
-export type RefundPaymentInput = z.infer<typeof refundPaymentSchema>;

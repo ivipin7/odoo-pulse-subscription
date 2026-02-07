@@ -1,17 +1,14 @@
 import { Router } from 'express';
-import { cartController } from './cart.controller';
-import { authenticate } from '../../middleware/auth';
+import { CartController } from './cart.controller';
 import { validate } from '../../middleware/validate';
-import { addToCartSchema, updateCartItemSchema } from './cart.schema';
+import { authMiddleware } from '../../middleware/auth';
+import { addCartItemSchema, updateCartItemSchema } from './cart.schema';
 
 const router = Router();
 
-router.use(authenticate);
-
-router.get('/', cartController.getCart);
-router.post('/', validate(addToCartSchema), cartController.addToCart);
-router.patch('/:itemId', validate(updateCartItemSchema), cartController.updateItem);
-router.delete('/:itemId', cartController.removeItem);
-router.delete('/', cartController.clearCart);
+router.get('/', authMiddleware, CartController.getCart);
+router.post('/', authMiddleware, validate(addCartItemSchema), CartController.addItem);
+router.put('/:id', authMiddleware, validate(updateCartItemSchema), CartController.updateItem);
+router.delete('/:id', authMiddleware, CartController.removeItem);
 
 export default router;

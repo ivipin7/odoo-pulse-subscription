@@ -1,30 +1,21 @@
-import { usersRepository } from './users.repository';
+import { UserRepository } from './users.repository';
 import { UpdateUserInput } from './users.schema';
+import { AppError } from '../../middleware/errorHandler';
 
-export const usersService = {
-  async getAllUsers(limit?: number, offset?: number) {
-    return usersRepository.findAll(limit, offset);
+export const UserService = {
+  async getAll() {
+    return UserRepository.findAll();
   },
 
-  async getUserById(id: string) {
-    const user = await usersRepository.findById(id);
-    if (!user) throw { status: 404, message: 'User not found' };
+  async getById(id: number) {
+    const user = await UserRepository.findById(id);
+    if (!user) throw new AppError('User not found', 404, 'NOT_FOUND');
     return user;
   },
 
-  async updateUser(id: string, data: UpdateUserInput) {
-    const user = await usersRepository.findById(id);
-    if (!user) throw { status: 404, message: 'User not found' };
-    return usersRepository.update(id, data);
-  },
-
-  async deleteUser(id: string) {
-    const user = await usersRepository.findById(id);
-    if (!user) throw { status: 404, message: 'User not found' };
-    return usersRepository.softDelete(id);
-  },
-
-  async getUserStats() {
-    return usersRepository.getStats();
+  async update(id: number, data: UpdateUserInput) {
+    const existing = await UserRepository.findById(id);
+    if (!existing) throw new AppError('User not found', 404, 'NOT_FOUND');
+    return UserRepository.update(id, data);
   },
 };
