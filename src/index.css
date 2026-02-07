@@ -1,0 +1,116 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 14% 96%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 222 47% 15%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 220 13% 91%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 220 14% 94%;
+    --muted-foreground: 220 9% 46%;
+
+    --accent: 199 89% 48%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 220 13% 88%;
+    --input: 220 13% 88%;
+    --ring: 222 47% 15%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 199 89% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 222 40% 18%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 222 40% 18%;
+    --sidebar-ring: 199 89% 48%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+}
+
+@layer components {
+  /* Status badge system */
+  .status-badge {
+    @apply inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold tracking-wide uppercase;
+  }
+  .status-badge-success {
+    background-color: hsl(142 76% 94%);
+    color: hsl(142 71% 29%);
+    border-color: hsl(142 69% 85%);
+  }
+  .status-badge-warning {
+    background-color: hsl(38 100% 94%);
+    color: hsl(38 80% 30%);
+    border-color: hsl(38 92% 82%);
+  }
+  .status-badge-danger {
+    background-color: hsl(0 100% 95%);
+    color: hsl(0 72% 40%);
+    border-color: hsl(0 84% 85%);
+  }
+  .status-badge-info {
+    background-color: hsl(199 100% 94%);
+    color: hsl(199 80% 28%);
+    border-color: hsl(199 89% 82%);
+  }
+  .status-badge-neutral {
+    background-color: hsl(220 14% 94%);
+    color: hsl(220 9% 36%);
+    border-color: hsl(220 13% 85%);
+  }
+
+  /* ERP table styling */
+  .erp-table {
+    @apply w-full text-sm;
+  }
+  .erp-table thead {
+    @apply border-b-2 border-border;
+  }
+  .erp-table th {
+    @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground;
+  }
+  .erp-table td {
+    @apply px-4 py-3 border-b border-border;
+  }
+  .erp-table tbody tr:hover {
+    background-color: hsl(220 14% 97%);
+  }
+
+  /* KPI card */
+  .kpi-card {
+    @apply rounded-lg border bg-card p-6 shadow-sm;
+  }
+  .kpi-value {
+    @apply text-3xl font-bold tracking-tight text-foreground;
+  }
+  .kpi-label {
+    @apply text-sm font-medium text-muted-foreground mt-1;
+  }
+}
