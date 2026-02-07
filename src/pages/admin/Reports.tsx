@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { KPICard } from "@/components/shared/KPICard";
-import { subscriptions, invoices, payments } from "@/data/mockData";
+import { useSubscriptions, useInvoices, usePayments } from "@/hooks/useApi";
 
 const monthlyData = [
   { month: "Sep", revenue: 145000, subscriptions: 42 },
@@ -33,6 +33,12 @@ const topProducts = [
 const maxRevenue = Math.max(...topProducts.map((p) => p.revenue));
 
 const AdminReports = () => {
+  const { data: subsData } = useSubscriptions();
+  const { data: invData } = useInvoices();
+  const { data: payData } = usePayments();
+  const subscriptions = (subsData ?? []) as any[];
+  const invoices = (invData ?? []) as any[];
+  const payments = (payData ?? []) as any[];
   return (
     <div>
       <PageHeader

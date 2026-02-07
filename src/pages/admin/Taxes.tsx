@@ -2,9 +2,11 @@ import { Receipt, Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { taxRules } from "@/data/mockData";
+import { useTaxRules } from "@/hooks/useApi";
 
 const AdminTaxes = () => {
+  const { data: taxData } = useTaxRules();
+  const taxRules = (taxData ?? []) as any[];
   return (
     <div>
       <PageHeader

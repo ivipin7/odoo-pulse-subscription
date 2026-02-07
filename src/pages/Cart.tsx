@@ -1,25 +1,41 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Minus, Plus, Trash2, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TopNav } from "@/components/layout/TopNav";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { initialCartItems, type CartItem } from "@/data/mockData";
+import { useCart, useUpdateCartItem, useRemoveCartItem, useValidateDiscount } from "@/hooks/useApi";
 
 const Cart = () => {
-  const [items, setItems] = useState<CartItem[]>(initialCartItems);
+  const { data: cartData } = useCart();
+  const updateCartMutation = useUpdateCartItem();
+  const removeCartMutation = useRemoveCartItem();
+  const validateDiscount = useValidateDiscount();
+  const [items, setItems] = useState<any[]>([]);
   const [discountCode, setDiscountCode] = useState("");
+
+  // Sync items from API / mock fallback
+  useEffect(() => {
+    if (cartData) setItems(cartData as any[]);
+  }, [cartData]);
 
   const updateQty = (idx: number, delta: number) => {
     setItems((prev) =>
-      prev.map((item, i) =>
-        i === idx ? { ...item, qty: Math.max(1, item.qty + delta) } : item
-      )
+      prev.map((item, i) => {
+        if (i === idx) {
+          const newQty = Math.max(1, item.qty + delta);
+          updateCartMutation.mutate({ id: item.productId, quantity: newQty });
+          return { ...item, qty: newQty };
+        }
+        return item;
+      })
     );
   };
 
   const removeItem = (idx: number) => {
+    const item = items[idx];
+    if (item) removeCartMutation.mutate(item.productId);
     setItems((prev) => prev.filter((_, i) => i !== idx));
   };
 
@@ -129,7 +145,13 @@ const Cart = () => {
                     className="pl-9 h-9 text-sm"
                   />
                 </div>
-                <Button variant="outline" size="sm">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (discountCode.trim()) validateDiscount.mutate(discountCode.trim());
+                  }}
+                >
                   Apply
                 </Button>
               </div>

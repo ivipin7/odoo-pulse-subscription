@@ -3,9 +3,12 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { KPICard } from "@/components/shared/KPICard";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { payments } from "@/data/mockData";
+import { usePayments, useRetryPayment } from "@/hooks/useApi";
 
 const AdminPayments = () => {
+  const { data: payData } = usePayments();
+  const payments = (payData ?? []) as any[];
+  const retryPayment = useRetryPayment();
   const totalCollected = payments
     .filter((p) => p.status === "SUCCESS")
     .reduce((sum, p) => sum + p.amount, 0);
@@ -92,7 +95,12 @@ const AdminPayments = () => {
                 </td>
                 <td className="text-right">
                   {pay.status === "FAILED" && (
-                    <Button variant="outline" size="sm" className="h-8 text-xs">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={() => retryPayment.mutate(Number(pay.id?.replace?.(/\D/g, "") || 0))}
+                    >
                       <RefreshCw className="h-3 w-3 mr-1" />
                       Retry
                     </Button>

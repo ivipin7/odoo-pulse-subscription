@@ -4,11 +4,14 @@ import { Button } from "@/components/ui/button";
 import { TopNav } from "@/components/layout/TopNav";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { orders, userProfile } from "@/data/mockData";
+import { useOrder, useProfile } from "@/hooks/useApi";
 
 const OrderDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const order = orders.find((o) => o.id === id);
+  const { data: orderData } = useOrder(id || "");
+  const { data: profileData } = useProfile();
+  const order = orderData as any;
+  const userProfile = profileData as any;
 
   if (!order) {
     return (

@@ -2,7 +2,7 @@ import { FileText, Plus, Eye, Send, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { quotations } from "@/data/mockData";
+import { useQuotations } from "@/hooks/useApi";
 
 const statusMap: Record<string, string> = {
   DRAFT: "DRAFT",
@@ -13,6 +13,8 @@ const statusMap: Record<string, string> = {
 };
 
 const AdminQuotations = () => {
+  const { data: quotData } = useQuotations();
+  const quotations = (quotData ?? []) as any[];
   return (
     <div>
       <PageHeader

@@ -1,9 +1,11 @@
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { products } from "@/data/mockData";
+import { useProducts } from "@/hooks/useApi";
 
 const AdminProducts = () => {
+  const { data: prodData } = useProducts();
+  const products = (prodData ?? []) as any[];
   return (
     <div>
       <PageHeader

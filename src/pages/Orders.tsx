@@ -4,9 +4,11 @@ import { Button } from "@/components/ui/button";
 import { TopNav } from "@/components/layout/TopNav";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { orders } from "@/data/mockData";
+import { useOrders } from "@/hooks/useApi";
 
 const Orders = () => {
+  const { data: ordersData } = useOrders();
+  const orders = (ordersData ?? []) as any[];
   return (
     <div className="min-h-screen bg-background">
       <TopNav />

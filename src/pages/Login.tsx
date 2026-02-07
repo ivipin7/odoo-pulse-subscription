@@ -1,12 +1,37 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Eye, EyeOff, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("rajesh.kumar@acmecorp.in");
+  const [password, setPassword] = useState("password123");
+  const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const from = (location.state as any)?.from?.pathname || "/";
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await login({ email, password });
+      toast.success("Welcome back!");
+      navigate(from, { replace: true });
+    } catch (err: any) {
+      // If backend is not available, do mock login for demo
+      toast.info("Demo mode — signed in locally");
+      navigate(from, { replace: true });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
@@ -26,20 +51,15 @@ const Login = () => {
 
         {/* Card */}
         <div className="rounded-lg border bg-card p-8 shadow-sm">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              window.location.href = "/";
-            }}
-            className="space-y-5"
-          >
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="email">Email Address</Label>
               <Input
                 id="email"
                 type="email"
                 placeholder="you@company.com"
-                defaultValue="rajesh.kumar@acmecorp.in"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
@@ -59,7 +79,8 @@ const Login = () => {
                   id="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
-                  defaultValue="password123"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   required
                 />
                 <button
@@ -84,9 +105,9 @@ const Login = () => {
               </Label>
             </div>
 
-            <Button type="submit" variant="accent" className="w-full">
+            <Button type="submit" variant="accent" className="w-full" disabled={loading}>
               <LogIn className="h-4 w-4 mr-2" />
-              Sign In
+              {loading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
 

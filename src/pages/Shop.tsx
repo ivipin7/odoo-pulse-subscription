@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { TopNav } from "@/components/layout/TopNav";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ProductCard } from "@/components/shared/ProductCard";
-import { products, categories } from "@/data/mockData";
+import { useProducts, useCategories } from "@/hooks/useApi";
 import {
   Select,
   SelectContent,
@@ -20,20 +20,23 @@ const Shop = () => {
   const [sortBy, setSortBy] = useState("default");
   const [showFilters, setShowFilters] = useState(false);
 
+  const { data: products = [] } = useProducts();
+  const { data: categories = [] } = useCategories();
+
   const filtered = useMemo(() => {
-    let result = products.filter((p) => {
+    let result = (products as any[]).filter((p: any) => {
       const matchSearch =
         p.name.toLowerCase().includes(search.toLowerCase()) ||
         p.description.toLowerCase().includes(search.toLowerCase());
-      const matchCategory = category === "All" || p.category === category;
+      const matchCategory = category === "All" || p.category === category || p.categoryName === category;
       return matchSearch && matchCategory;
     });
 
-    if (sortBy === "price-asc") result.sort((a, b) => a.price - b.price);
-    if (sortBy === "price-desc") result.sort((a, b) => b.price - a.price);
+    if (sortBy === "price-asc") result.sort((a: any, b: any) => (a.price ?? a.basePrice) - (b.price ?? b.basePrice));
+    if (sortBy === "price-desc") result.sort((a: any, b: any) => (b.price ?? b.basePrice) - (a.price ?? a.basePrice));
 
     return result;
-  }, [search, category, sortBy]);
+  }, [search, category, sortBy, products]);
 
   return (
     <div className="min-h-screen bg-background">

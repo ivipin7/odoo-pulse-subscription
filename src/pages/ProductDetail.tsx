@@ -4,7 +4,8 @@ import { Minus, Plus, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TopNav } from "@/components/layout/TopNav";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { products } from "@/data/mockData";
+import { useProduct, useAddToCart } from "@/hooks/useApi";
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -36,11 +37,15 @@ const pricingTiers = [
 
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const product = products.find((p) => p.id === Number(id));
+  const { data: product } = useProduct(Number(id));
+  const addToCart = useAddToCart();
 
-  const [selectedVariant, setSelectedVariant] = useState(product?.variants[0]?.name || "");
+  const [selectedVariant, setSelectedVariant] = useState("");
   const [selectedTier, setSelectedTier] = useState(0);
   const [qty, setQty] = useState(1);
+
+  // Set default variant when product loads
+  const effectiveVariant = selectedVariant || (product as any)?.variants?.[0]?.name || "";
 
   if (!product) {
     return (
@@ -58,8 +63,8 @@ const ProductDetail = () => {
 
   const Icon = categoryIcons[product.category] || Layers;
   const gradient = categoryColors[product.category] || "from-primary to-primary/80";
-  const variant = product.variants.find((v) => v.name === selectedVariant);
-  const basePrice = product.price + (variant?.extraPrice || 0);
+  const variant = (product as any)?.variants?.find((v: any) => v.name === effectiveVariant);
+  const basePrice = ((product as any)?.price ?? (product as any)?.basePrice ?? 0) + (variant?.extraPrice || 0);
   const tier = pricingTiers[selectedTier];
   const discountedMonthly = Math.round(basePrice * (1 - tier.discount / 100));
   const totalPrice = discountedMonthly * tier.multiplier * qty;
@@ -101,10 +106,10 @@ const ProductDetail = () => {
           <div className="space-y-6">
             <div>
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-                {product.category}
-              </span>
-              <h2 className="text-3xl font-bold text-foreground mt-1">{product.name}</h2>
-              <p className="text-muted-foreground mt-2 leading-relaxed">{product.description}</p>
+              {(product as any).category || (product as any).categoryName}
+            </span>
+            <h2 className="text-3xl font-bold text-foreground mt-1">{(product as any).name}</h2>
+            <p className="text-muted-foreground mt-2 leading-relaxed">{(product as any).description}</p>
             </div>
 
             {/* Pricing tiers */}
@@ -142,12 +147,12 @@ const ProductDetail = () => {
             {/* Variant selector */}
             <div>
               <h3 className="text-sm font-semibold text-foreground mb-2">Variant</h3>
-              <Select value={selectedVariant} onValueChange={setSelectedVariant}>
+              <Select value={effectiveVariant} onValueChange={setSelectedVariant}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {product.variants.map((v) => (
+                  {(product as any).variants?.map((v: any) => (
                     <SelectItem key={v.name} value={v.name}>
                       {v.name}
                       {v.extraPrice > 0 && ` (+₹${v.extraPrice}/mo)`}
@@ -197,7 +202,10 @@ const ProductDetail = () => {
               </div>
             </div>
 
-            <Button variant="accent" size="lg" className="w-full">
+            <Button variant="accent" size="lg" className="w-full" onClick={() => {
+              addToCart.mutate({ productId: (product as any).id, quantity: qty });
+              toast.success(`${(product as any).name} added to cart!`);
+            }}>
               <ShoppingCart className="mr-2 h-5 w-5" />
               Add to Cart
             </Button>

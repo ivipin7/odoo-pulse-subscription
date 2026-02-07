@@ -2,7 +2,7 @@ import { Users as UsersIcon, Plus, Pencil, Shield, ShieldCheck, ShieldAlert, Hea
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { adminUsers } from "@/data/mockData";
+import { useUsers } from "@/hooks/useApi";
 
 const roleIcons: Record<string, React.ElementType> = {
   SUPER_ADMIN: ShieldAlert,
@@ -19,6 +19,8 @@ const roleBadgeColor: Record<string, string> = {
 };
 
 const AdminUsers = () => {
+  const { data: usersData } = useUsers();
+  const adminUsers = (usersData ?? []) as any[];
   return (
     <div>
       <PageHeader

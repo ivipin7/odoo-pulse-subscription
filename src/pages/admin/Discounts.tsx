@@ -2,9 +2,11 @@ import { Tag, Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { discounts } from "@/data/mockData";
+import { useDiscounts } from "@/hooks/useApi";
 
 const AdminDiscounts = () => {
+  const { data: discData } = useDiscounts();
+  const discounts = (discData ?? []) as any[];
   return (
     <div>
       <PageHeader

@@ -1,8 +1,13 @@
 import { AlertTriangle, DollarSign, RefreshCw, TrendingUp } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { KPICard } from "@/components/shared/KPICard";
+import { useRecoveryDashboard, useAtRiskSubscriptions } from "@/hooks/useApi";
 
 const AdminDashboard = () => {
+  const { data: recovery } = useRecoveryDashboard();
+  const { data: atRiskData } = useAtRiskSubscriptions();
+  const dashboard = recovery as any;
+  const atRiskSubs = (atRiskData ?? []) as any[];
   return (
     <div>
       <PageHeader title="Dashboard" />
@@ -10,28 +15,28 @@ const AdminDashboard = () => {
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <KPICard
           title="Failed Payments"
-          value={12}
+          value={dashboard?.failedCount ?? 12}
           icon={AlertTriangle}
           trend="↑ 3 from last week"
           trendUp={false}
         />
         <KPICard
           title="At-Risk Subscriptions"
-          value={8}
+          value={dashboard?.atRiskCount ?? 8}
           icon={TrendingUp}
           trend="↓ 2 from last week"
           trendUp={true}
         />
         <KPICard
           title="Recovered Payments"
-          value={24}
+          value={dashboard?.recoveredCount ?? 24}
           icon={RefreshCw}
           trend="↑ 5 from last month"
           trendUp={true}
         />
         <KPICard
           title="Monthly Revenue"
-          value="₹2.4L"
+          value={dashboard?.revenueRecovered ? `₹${(dashboard.revenueRecovered / 100000).toFixed(1)}L` : "₹2.4L"}
           icon={DollarSign}
           trend="↑ 12% MoM"
           trendUp={true}

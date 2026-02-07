@@ -6,13 +6,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TopNav } from "@/components/layout/TopNav";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { userProfile } from "@/data/mockData";
+import { useProfile } from "@/hooks/useApi";
 
 const steps = ["Address", "Payment", "Confirmation"];
 
 const Checkout = () => {
   const [step, setStep] = useState(0);
-  const defaultAddr = userProfile.addresses.find((a) => a.isDefault)!;
+  const { data: profileData } = useProfile();
+  const userProfile = profileData as any;
+  const defaultAddr = userProfile?.addresses?.find((a: any) => a.isDefault) ?? userProfile?.addresses?.[0] ?? { label: "", line1: "", line2: "", city: "", state: "", pin: "" };
 
   return (
     <div className="min-h-screen bg-background">
@@ -111,7 +113,7 @@ const Checkout = () => {
                   <Label htmlFor="card-name" className="text-sm">
                     Name on Card
                   </Label>
-                  <Input id="card-name" defaultValue={userProfile.name} className="mt-1" />
+                  <Input id="card-name" defaultValue={userProfile?.name || ""} className="mt-1" />
                 </div>
                 <div>
                   <Label htmlFor="card-number" className="text-sm">

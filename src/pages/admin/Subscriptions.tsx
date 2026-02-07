@@ -1,8 +1,10 @@
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { subscriptions } from "@/data/mockData";
+import { useSubscriptions } from "@/hooks/useApi";
 
 const AdminSubscriptions = () => {
+  const { data: subsData } = useSubscriptions();
+  const subscriptions = (subsData ?? []) as any[];
   return (
     <div>
       <PageHeader title="Subscriptions" />

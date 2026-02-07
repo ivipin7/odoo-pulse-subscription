@@ -1,8 +1,10 @@
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { invoices } from "@/data/mockData";
+import { useInvoices } from "@/hooks/useApi";
 
 const AdminInvoices = () => {
+  const { data: invData } = useInvoices();
+  const invoices = (invData ?? []) as any[];
   return (
     <div>
       <PageHeader title="Invoices" />

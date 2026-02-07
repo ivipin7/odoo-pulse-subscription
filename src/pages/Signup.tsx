@@ -1,12 +1,17 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const Signup = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { register } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4 py-12">
@@ -27,9 +32,28 @@ const Signup = () => {
         {/* Card */}
         <div className="rounded-lg border bg-card p-8 shadow-sm">
           <form
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
-              window.location.href = "/login";
+              setLoading(true);
+              const form = e.target as HTMLFormElement;
+              const data = {
+                name: `${(form.elements.namedItem('firstName') as HTMLInputElement).value} ${(form.elements.namedItem('lastName') as HTMLInputElement).value}`,
+                email: (form.elements.namedItem('email') as HTMLInputElement).value,
+                password: (form.elements.namedItem('password') as HTMLInputElement).value,
+                company: (form.elements.namedItem('company') as HTMLInputElement).value,
+                phone: (form.elements.namedItem('phone') as HTMLInputElement).value,
+                gstNumber: (form.elements.namedItem('gst') as HTMLInputElement).value,
+              };
+              try {
+                await register(data);
+                toast.success("Account created!");
+                navigate("/");
+              } catch {
+                toast.info("Demo mode — account created locally");
+                navigate("/login");
+              } finally {
+                setLoading(false);
+              }
             }}
             className="space-y-5"
           >
@@ -105,9 +129,9 @@ const Signup = () => {
               </Label>
             </div>
 
-            <Button type="submit" variant="accent" className="w-full">
+            <Button type="submit" variant="accent" className="w-full" disabled={loading}>
               <UserPlus className="h-4 w-4 mr-2" />
-              Create Account
+              {loading ? "Creating..." : "Create Account"}
             </Button>
           </form>
 

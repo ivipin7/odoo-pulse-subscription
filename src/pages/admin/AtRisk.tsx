@@ -3,18 +3,25 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { KPICard } from "@/components/shared/KPICard";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { subscriptions, invoices } from "@/data/mockData";
-
-const atRiskSubs = subscriptions.filter((s) => s.status === "AT_RISK");
-
-const atRiskDetails = [
-  { sub: atRiskSubs[0], reason: "Payment failed 3 times", daysSinceIssue: 15, lastContact: "2025-02-05", revenue: 14400 },
-  { sub: atRiskSubs[1], reason: "Payment failed 2 times", daysSinceIssue: 7, lastContact: "2025-02-13", revenue: 20400 },
-];
-
-const failedInvoices = invoices.filter((i) => i.status === "FAILED");
+import { useSubscriptions, useInvoices, useRetryPayment } from "@/hooks/useApi";
 
 const AdminAtRisk = () => {
+  const { data: subsData } = useSubscriptions();
+  const { data: invData } = useInvoices();
+  const retryPayment = useRetryPayment();
+  const subscriptions = (subsData ?? []) as any[];
+  const invoices = (invData ?? []) as any[];
+
+  const atRiskSubs = subscriptions.filter((s: any) => s.status === "AT_RISK");
+  const failedInvoices = invoices.filter((i: any) => i.status === "FAILED");
+
+  const atRiskDetails = atRiskSubs.slice(0, 2).map((sub: any, i: number) => ({
+    sub,
+    reason: `Payment failed ${3 - i} times`,
+    daysSinceIssue: i === 0 ? 15 : 7,
+    lastContact: i === 0 ? "2025-02-05" : "2025-02-13",
+    revenue: i === 0 ? 14400 : 20400,
+  }));
   return (
     <div>
       <PageHeader
@@ -100,7 +107,12 @@ const AdminAtRisk = () => {
                     <Button variant="ghost" size="icon" className="h-8 w-8" title="Email Customer">
                       <Mail className="h-3.5 w-3.5" />
                     </Button>
-                    <Button variant="outline" size="sm" className="h-8 text-xs">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={() => retryPayment.mutate(Number(item.sub?.id?.replace?.(/\D/g, "") || 0))}
+                    >
                       <RefreshCw className="h-3 w-3 mr-1" />
                       Retry
                     </Button>

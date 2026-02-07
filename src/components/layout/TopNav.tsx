@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { ShoppingCart, User, Menu, X, LogIn } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { ShoppingCart, User, Menu, X, LogIn, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 
 const navLinks = [
   { label: "Home", to: "/" },
@@ -12,6 +13,13 @@ const navLinks = [
 export const TopNav = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { isAuthenticated, user, logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  };
 
   const isActive = (path: string) =>
     path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
@@ -59,17 +67,31 @@ export const TopNav = () => {
               <ShoppingCart className="h-5 w-5" />
             </Link>
           </Button>
-          <Button variant="ghost" size="icon" asChild>
-            <Link to="/profile">
-              <User className="h-5 w-5" />
-            </Link>
-          </Button>
-          <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
-            <Link to="/login">
-              <LogIn className="h-4 w-4 mr-1" />
-              Login
-            </Link>
-          </Button>
+          {isAuthenticated ? (
+            <>
+              <Button variant="ghost" size="icon" asChild>
+                <Link to="/profile">
+                  <User className="h-5 w-5" />
+                </Link>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="hidden sm:inline-flex"
+                onClick={handleLogout}
+              >
+                <LogOut className="h-4 w-4 mr-1" />
+                Logout
+              </Button>
+            </>
+          ) : (
+            <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
+              <Link to="/login">
+                <LogIn className="h-4 w-4 mr-1" />
+                Login
+              </Link>
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"

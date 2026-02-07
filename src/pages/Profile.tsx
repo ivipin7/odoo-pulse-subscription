@@ -3,10 +3,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TopNav } from "@/components/layout/TopNav";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { userProfile } from "@/data/mockData";
+import { useProfile, useUpdateProfile } from "@/hooks/useApi";
 import { MapPin } from "lucide-react";
 
 const Profile = () => {
+  const { data: profileData } = useProfile();
+  const updateProfile = useUpdateProfile();
+  const userProfile = profileData as any;
+
+  if (!userProfile) return null;
+
   return (
     <div className="min-h-screen bg-background">
       <TopNav />
