@@ -1,36 +1,33 @@
 import { Router } from 'express';
-import { paymentsController } from './payments.controller';
-import { authenticate, authorize } from '../../middleware/auth';
+import { PaymentController } from './payments.controller';
 import { validate } from '../../middleware/validate';
-import { processPaymentSchema, retryPaymentSchema } from './payments.schema';
+import { processPaymentSchema, demoForceSchema } from './payments.schema';
 
 const router = Router();
 
-// All payment routes require authentication
-router.use(authenticate);
+/**
+ * Payment Routes
+ *
+ * POST /api/payments/process         — Process payment for an invoice
+ * POST /api/payments/retry/:invoiceId — Retry a failed payment (CORE FEATURE)
+ * GET  /api/payments                  — List all payments
+ * GET  /api/payments/:id              — Get single payment
+ * POST /api/payments/demo/force       — Demo: force next result (success/failure)
+ */
 
 // Process a new payment
-router.post('/process', validate(processPaymentSchema), paymentsController.processPayment);
+router.post('/process', validate(processPaymentSchema), PaymentController.processPayment);
 
-// Retry a failed payment (admin only)
-router.post('/retry/:invoiceId', authorize('SUPER_ADMIN', 'ADMIN', 'MANAGER'), validate(retryPaymentSchema), paymentsController.retryPayment);
+// Retry a failed payment — THE CORE FEATURE
+router.post('/retry/:invoiceId', PaymentController.retryPayment);
 
-// Get all payments (role-aware: customer sees own, admin sees all)
-router.get('/', paymentsController.getAll);
+// Demo mode: force next payment outcome
+router.post('/demo/force', validate(demoForceSchema), PaymentController.demoForceResult);
 
-// Get payment by ID
-router.get('/:id', paymentsController.getById);
+// List all payments
+router.get('/', PaymentController.getAllPayments);
 
-// Get payments for a specific invoice
-router.get('/invoice/:invoiceId', paymentsController.getByInvoice);
-
-// Get retry history for an invoice
-router.get('/retries/:invoiceId', paymentsController.getRetryHistory);
-
-// ── Recovery Dashboard (Admin only) ──────────────────────────────
-
-router.get('/recovery/dashboard', authorize('SUPER_ADMIN', 'ADMIN', 'MANAGER'), paymentsController.getRecoveryDashboard);
-router.get('/recovery/at-risk', authorize('SUPER_ADMIN', 'ADMIN', 'MANAGER'), paymentsController.getAtRiskSubscriptions);
-router.get('/recovery/timeline', authorize('SUPER_ADMIN', 'ADMIN', 'MANAGER'), paymentsController.getRecoveryTimeline);
+// Get single payment
+router.get('/:id', PaymentController.getPaymentById);
 
 export default router;

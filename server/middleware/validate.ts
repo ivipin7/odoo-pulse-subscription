@@ -2,28 +2,30 @@ import { Request, Response, NextFunction } from 'express';
 import { ZodSchema, ZodError } from 'zod';
 
 /**
- * Zod validation middleware factory.
- * Usage: router.post('/', validate(createProductSchema), controller.create)
- *
- * Validates req.body against the provided Zod schema.
- * On failure, passes a structured error to the error handler.
+ * Zod validation middleware factory
+ * Validates request body/params/query against a Zod schema
  */
-export function validate(schema: ZodSchema) {
-  return (req: Request, _res: Response, next: NextFunction) => {
+export function validate(schema: ZodSchema, source: 'body' | 'params' | 'query' = 'body') {
+  return (req: Request, res: Response, next: NextFunction) => {
     try {
-      req.body = schema.parse(req.body);
+      const data = schema.parse(req[source]);
+      // Replace with parsed + coerced data
+      (req as any)[source] = data;
       next();
     } catch (err) {
       if (err instanceof ZodError) {
-        return next({
-          status: 400,
-          code: 'VALIDATION_ERROR',
-          message: err.errors[0]?.message || 'Invalid request body',
-          details: err.errors.map((e) => ({
-            field: e.path.join('.'),
-            message: e.message,
-          })),
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid request data',
+            details: err.errors.map((e) => ({
+              field: e.path.join('.'),
+              message: e.message,
+            })),
+          },
         });
+        return;
       }
       next(err);
     }

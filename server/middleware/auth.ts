@@ -4,44 +4,62 @@ import { env } from '../config/env';
 
 export interface AuthRequest extends Request {
   user?: {
-    id: string;
+    id: number;
     email: string;
     role: string;
   };
 }
 
 /**
- * JWT verification middleware.
- * Extracts token from Authorization header, verifies, and attaches user to req.
+ * JWT authentication middleware
+ * Extracts and verifies JWT from Authorization header
  */
-export function authenticate(req: AuthRequest, _res: Response, next: NextFunction) {
+export function auth(req: AuthRequest, res: Response, next: NextFunction) {
   const header = req.headers.authorization;
+
   if (!header || !header.startsWith('Bearer ')) {
-    return next({ status: 401, code: 'UNAUTHORIZED', message: 'Missing or invalid token' });
+    res.status(401).json({
+      success: false,
+      error: { code: 'UNAUTHORIZED', message: 'No token provided' },
+    });
+    return;
   }
 
-  const token = header.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, env.JWT_SECRET) as { id: string; email: string; role: string };
+    const token = header.split(' ')[1];
+    const decoded = jwt.verify(token, env.JWT_SECRET) as { id: number; email: string; role: string };
     req.user = decoded;
     next();
   } catch {
-    next({ status: 401, code: 'UNAUTHORIZED', message: 'Token expired or invalid' });
+    res.status(401).json({
+      success: false,
+      error: { code: 'UNAUTHORIZED', message: 'Invalid or expired token' },
+    });
   }
 }
 
 /**
- * Role-based access control middleware.
- * Usage: authorize('ADMIN', 'SUPER_ADMIN')
+ * Role-based authorization middleware
+ * Must be used AFTER auth middleware
  */
-export function authorize(...roles: string[]) {
-  return (req: AuthRequest, _res: Response, next: NextFunction) => {
+export function requireRole(...roles: string[]) {
+  return (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
-      return next({ status: 401, code: 'UNAUTHORIZED', message: 'Not authenticated' });
+      res.status(401).json({
+        success: false,
+        error: { code: 'UNAUTHORIZED', message: 'Not authenticated' },
+      });
+      return;
     }
+
     if (!roles.includes(req.user.role)) {
-      return next({ status: 403, code: 'FORBIDDEN', message: 'Insufficient permissions' });
+      res.status(403).json({
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'Insufficient permissions' },
+      });
+      return;
     }
+
     next();
   };
 }
