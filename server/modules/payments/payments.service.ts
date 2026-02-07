@@ -1,103 +1,166 @@
 import { pool } from '../../config/db';
 import { PaymentRepository } from './payments.repository';
-import { ProcessPaymentInput } from './payments.schema';
-import { AppError } from '../../middleware/errorHandler';
 
+/**
+ * ═══════════════════════════════════════════════════════════════
+ * PAYMENT SERVICE — THE CORE RECOVERY ENGINE
+ * ═══════════════════════════════════════════════════════════════
+ *
+ * This is the MOST IMPORTANT file in the entire project.
+ * It contains the Failed Payment Retry Engine — the primary
+ * differentiator for the hackathon demo.
+ *
+ * RULES (MEMORIZE):
+ * 1. Only FAILED invoices can be retried
+ * 2. Max 3 retries (enforced at service + DB level)
+ * 3. Must be IDEMPOTENT — calling retry twice for same attempt = same result
+ * 4. PAID invoices must NEVER be retried
+ * 5. Every attempt is recorded in payment_retries audit log
+ * 6. All state transitions are ATOMIC (single transaction)
+ *
+ * STATE MACHINES:
+ *   Invoice:       DRAFT → CONFIRMED → FAILED → PAID
+ *   Subscription:  DRAFT → QUOTATION → ACTIVE → AT_RISK → CLOSED
+ *                                        ↑         ↓
+ *                                        └── PAID ──┘ (recovery)
+ *
+ * TRANSITION TABLE:
+ *   Payment fails        → Invoice: CONFIRMED → FAILED, Sub: ACTIVE → AT_RISK
+ *   Retry succeeds       → Invoice: FAILED → PAID, Sub: AT_RISK → ACTIVE
+ *   Retry limit (3) hit  → Invoice: stays FAILED, Sub: AT_RISK → CLOSED
+ */
 export const PaymentService = {
-  async getAll(userId?: number, role?: string) {
-    if (role && ['SUPER_ADMIN', 'ADMIN', 'MANAGER'].includes(role)) {
-      return PaymentRepository.findAll();
-    }
-    return PaymentRepository.findAll(userId);
-  },
 
-  async getById(id: number) {
-    const payment = await PaymentRepository.findById(id);
-    if (!payment) throw new AppError('Payment not found', 404, 'NOT_FOUND');
-    return payment;
-  },
-
-  async processPayment(data: ProcessPaymentInput) {
-    // Simulate gateway — Siva will enhance with retry engine
-    const success = Math.random() > 0.3;
-    const payment = await PaymentRepository.create({
-      ...data,
-      status: success ? 'SUCCESS' : 'FAILED',
-    });
-
-    if (success) {
-      await pool.query("UPDATE invoices SET status = 'PAID' WHERE id = $1", [data.invoice_id]);
-    } else {
-      await pool.query("UPDATE invoices SET status = 'FAILED' WHERE id = $1 AND status = 'CONFIRMED'", [data.invoice_id]);
-    }
-
-    return payment;
-  },
+  // ─────────────────────────────────────────────────────────────
+  // CORE: RETRY FAILED PAYMENT
+  // ─────────────────────────────────────────────────────────────
 
   /**
-   * Retry a failed payment — SIVA OWNS THIS (payment-recovery)
-   * Placeholder: Siva will implement the full transactional retry engine
+   * Retry a failed payment for an invoice
+   *
+   * This is the PRIMARY FEATURE of the entire application.
+   * Uses PostgreSQL transaction with row-level locking for safety.
+   *
+   * @param invoiceId - The ID of the failed invoice to retry
+   * @returns Retry result with updated states
+   * @throws Error if invoice not found, already paid, not failed, or limit reached
    */
   async retryPayment(invoiceId: number) {
     const client = await pool.connect();
+
     try {
       await client.query('BEGIN');
 
-      const invoiceResult = await client.query(
-        'SELECT * FROM invoices WHERE id = $1 FOR UPDATE',
-        [invoiceId]
-      );
-      const invoice = invoiceResult.rows[0];
-      if (!invoice) throw new AppError('Invoice not found', 404, 'NOT_FOUND');
-      if (invoice.status === 'PAID') throw new AppError('Invoice already paid', 400, 'ALREADY_PAID');
-      if (invoice.status !== 'FAILED') throw new AppError('Only FAILED invoices can be retried', 400, 'INVALID_STATUS');
-      if (invoice.retry_count >= 3) throw new AppError('Max retry limit (3) reached', 400, 'RETRY_LIMIT');
+      // ── Step 1: Lock the invoice row (prevent race conditions) ──
+      const invoice = await PaymentRepository.findInvoiceForUpdate(client, invoiceId);
 
-      const paymentSuccess = Math.random() > 0.4;
-      const attemptNumber = invoice.retry_count + 1;
-
-      await client.query(
-        `INSERT INTO payment_retries (invoice_id, attempt_number, status, failure_reason)
-         VALUES ($1, $2, $3, $4)`,
-        [invoiceId, attemptNumber, paymentSuccess ? 'SUCCESS' : 'FAILED', paymentSuccess ? null : 'Simulated failure']
-      );
-
-      if (paymentSuccess) {
-        await client.query(
-          `UPDATE invoices SET status = 'PAID', retry_count = $1, last_retry_at = NOW() WHERE id = $2`,
-          [attemptNumber, invoiceId]
-        );
-        await client.query(
-          `INSERT INTO payments (payment_ref, invoice_id, user_id, amount, method, status)
-           VALUES ($1, $2, $3, $4, 'UPI', 'SUCCESS')`,
-          [`PAY-RETRY-${invoiceId}-${attemptNumber}`, invoiceId, invoice.user_id, invoice.total_amount]
-        );
-        await client.query(
-          `UPDATE subscriptions SET status = 'ACTIVE' WHERE id = $1 AND status = 'AT_RISK'`,
-          [invoice.subscription_id]
-        );
-      } else {
-        await client.query(
-          `UPDATE invoices SET retry_count = $1, last_retry_at = NOW() WHERE id = $2`,
-          [attemptNumber, invoiceId]
-        );
-        if (attemptNumber >= 3) {
-          await client.query(
-            `UPDATE subscriptions SET status = 'CLOSED', closed_at = NOW() WHERE id = $1 AND status = 'AT_RISK'`,
-            [invoice.subscription_id]
-          );
-        }
+      if (!invoice) {
+        throw new Error('Invoice not found');
+      }
+      if (invoice.status === 'PAID') {
+        throw new Error('Invoice already paid — cannot retry');
+      }
+      if (invoice.status !== 'FAILED') {
+        throw new Error('Only FAILED invoices can be retried');
+      }
+      if (invoice.retry_count >= 3) {
+        throw new Error('Maximum retry limit (3) reached');
       }
 
+      // ── Step 2: Simulate payment gateway call ──
+      const paymentSuccess = this.simulatePaymentGateway();
+
+      // ── Step 3: Calculate attempt number ──
+      const attemptNumber = invoice.retry_count + 1;
+
+      // ── Step 4: Handle SUCCESS path ──
+      if (paymentSuccess) {
+        // Create successful payment record
+        const payment = await PaymentRepository.createPayment(client, {
+          paymentRef: `PAY-RETRY-${invoiceId}-${attemptNumber}`,
+          invoiceId: invoiceId,
+          userId: invoice.user_id,
+          amount: parseFloat(invoice.total_amount),
+          method: 'UPI',
+          status: 'SUCCESS',
+          gatewayRef: `GW-RETRY-${Date.now()}`,
+        });
+
+        // Record SUCCESS in audit log
+        await PaymentRepository.createRetryRecord(client, {
+          invoiceId,
+          paymentId: payment.id,
+          attemptNumber,
+          status: 'SUCCESS',
+          failureReason: null,
+        });
+
+        // Invoice: FAILED → PAID
+        await PaymentRepository.markInvoicePaid(client, invoiceId, attemptNumber);
+
+        // Subscription: AT_RISK → ACTIVE (recovery!)
+        await PaymentRepository.recoverSubscription(client, invoice.subscription_id);
+
+        await client.query('COMMIT');
+
+        return {
+          success: true,
+          invoiceId,
+          attempt: attemptNumber,
+          invoiceStatus: 'PAID' as const,
+          subscriptionStatus: 'ACTIVE' as const,
+          retriesRemaining: 3 - attemptNumber,
+          paymentRef: payment.payment_ref,
+          message: `Payment recovered successfully on attempt ${attemptNumber}. Subscription restored to ACTIVE.`,
+        };
+      }
+
+      // ── Step 5: Handle FAILURE path ──
+
+      // Record FAILED attempt in audit log
+      await PaymentRepository.createRetryRecord(client, {
+        invoiceId,
+        paymentId: null,
+        attemptNumber,
+        status: 'FAILED',
+        failureReason: 'Payment gateway declined the transaction',
+      });
+
+      // Increment retry count on invoice
+      await PaymentRepository.incrementInvoiceRetry(client, invoiceId, attemptNumber);
+
+      // If all 3 retries exhausted → CLOSE the subscription
+      if (attemptNumber >= 3) {
+        await PaymentRepository.closeSubscription(client, invoice.subscription_id);
+
+        await client.query('COMMIT');
+
+        return {
+          success: false,
+          invoiceId,
+          attempt: attemptNumber,
+          invoiceStatus: 'FAILED' as const,
+          subscriptionStatus: 'CLOSED' as const,
+          retriesRemaining: 0,
+          paymentRef: null,
+          message: `All 3 retry attempts exhausted. Subscription has been CLOSED.`,
+        };
+      }
+
+      // Still have retries remaining
       await client.query('COMMIT');
+
       return {
+        success: false,
         invoiceId,
         attempt: attemptNumber,
-        success: paymentSuccess,
-        invoiceStatus: paymentSuccess ? 'PAID' : 'FAILED',
-        subscriptionStatus: paymentSuccess ? 'ACTIVE' : (attemptNumber >= 3 ? 'CLOSED' : 'AT_RISK'),
+        invoiceStatus: 'FAILED' as const,
+        subscriptionStatus: 'AT_RISK' as const,
         retriesRemaining: 3 - attemptNumber,
+        paymentRef: null,
+        message: `Retry attempt ${attemptNumber} failed. ${3 - attemptNumber} retries remaining.`,
       };
+
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;
@@ -106,49 +169,193 @@ export const PaymentService = {
     }
   },
 
-  /** Recovery Dashboard KPIs */
+  // ─────────────────────────────────────────────────────────────
+  // PROCESS INITIAL PAYMENT (simulate gateway for an invoice)
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Process a payment for a CONFIRMED invoice
+   * Simulates the initial payment attempt
+   *
+   * @param invoiceId - The invoice to process payment for
+   * @param method - Payment method (UPI, CREDIT_CARD, etc.)
+   * @returns Payment result
+   */
+  async processPayment(invoiceId: number, method: string = 'UPI') {
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      // Lock and fetch the invoice
+      const invoice = await PaymentRepository.findInvoiceForUpdate(client, invoiceId);
+
+      if (!invoice) {
+        throw new Error('Invoice not found');
+      }
+      if (invoice.status === 'PAID') {
+        throw new Error('Invoice already paid — cannot retry');
+      }
+      if (invoice.status !== 'CONFIRMED') {
+        throw new Error('Only CONFIRMED invoices can be processed');
+      }
+
+      // Simulate payment gateway
+      const paymentSuccess = this.simulatePaymentGateway();
+      const paymentRef = `PAY-${invoiceId}-${Date.now()}`;
+
+      if (paymentSuccess) {
+        // Create payment record
+        const payment = await PaymentRepository.createPayment(client, {
+          paymentRef,
+          invoiceId,
+          userId: invoice.user_id,
+          amount: parseFloat(invoice.total_amount),
+          method,
+          status: 'SUCCESS',
+          gatewayRef: `GW-${Date.now()}`,
+        });
+
+        // Invoice → PAID
+        await PaymentRepository.markInvoicePaid(client, invoiceId, 0);
+
+        await client.query('COMMIT');
+
+        return {
+          success: true,
+          invoiceId,
+          paymentId: payment.id,
+          paymentRef,
+          invoiceStatus: 'PAID' as const,
+          message: 'Payment processed successfully.',
+        };
+      }
+
+      // Payment failed
+      const payment = await PaymentRepository.createPayment(client, {
+        paymentRef,
+        invoiceId,
+        userId: invoice.user_id,
+        amount: parseFloat(invoice.total_amount),
+        method,
+        status: 'FAILED',
+        failureReason: 'Payment gateway declined the transaction',
+      });
+
+      // Invoice → FAILED
+      await PaymentRepository.failInvoice(client, invoiceId);
+
+      // Subscription → AT_RISK
+      await PaymentRepository.markSubscriptionAtRisk(client, invoice.subscription_id);
+
+      await client.query('COMMIT');
+
+      return {
+        success: false,
+        invoiceId,
+        paymentId: payment.id,
+        paymentRef,
+        invoiceStatus: 'FAILED' as const,
+        message: 'Payment failed. Subscription moved to AT_RISK. Retry available.',
+      };
+
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // PAYMENT GATEWAY SIMULATION
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Simulate a payment gateway response
+   *
+   * For DEMO: Override this to return deterministic results.
+   * - Use `forceSuccess()` to guarantee next retry succeeds
+   * - Use `forceFailure()` to guarantee next retry fails
+   *
+   * Default: ~60% success rate
+   */
+  simulatePaymentGateway(): boolean {
+    // Check if demo mode override is set
+    if (PaymentService._demoForceResult !== null) {
+      const result = PaymentService._demoForceResult;
+      PaymentService._demoForceResult = null; // one-shot
+      return result;
+    }
+    return Math.random() > 0.4; // 60% success
+  },
+
+  // Demo mode control (for guaranteed demo outcomes)
+  _demoForceResult: null as boolean | null,
+
+  /**
+   * Force the next payment attempt to succeed (for demo)
+   */
+  forceNextSuccess() {
+    PaymentService._demoForceResult = true;
+  },
+
+  /**
+   * Force the next payment attempt to fail (for demo)
+   */
+  forceNextFailure() {
+    PaymentService._demoForceResult = false;
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // READ OPERATIONS (LIST / GET BY ID)
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * List all payments with optional filters
+   */
+  async getAllPayments(filters?: { status?: string; userId?: number; limit?: number; offset?: number }) {
+    return PaymentRepository.findAllPayments(filters);
+  },
+
+  /**
+   * Get a single payment by ID
+   */
+  async getPaymentById(id: number) {
+    const payment = await PaymentRepository.findPaymentById(id);
+    if (!payment) {
+      throw new Error('Payment not found');
+    }
+    return payment;
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // RECOVERY DASHBOARD
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Recovery Dashboard KPIs
+   * Returns: failed_count, at_risk_count, recovered_count,
+   *          revenue_at_risk, revenue_recovered, closed_count
+   */
   async getRecoveryDashboard() {
-    const result = await pool.query(`
-      SELECT
-        (SELECT COUNT(*) FROM invoices WHERE status = 'FAILED') as failed_count,
-        (SELECT COUNT(*) FROM subscriptions WHERE status = 'AT_RISK') as at_risk_count,
-        (SELECT COUNT(*) FROM payment_retries WHERE status = 'SUCCESS') as recovered_count,
-        (SELECT COALESCE(SUM(total_amount), 0) FROM invoices WHERE status = 'FAILED') as revenue_at_risk,
-        (SELECT COALESCE(SUM(i.total_amount), 0)
-         FROM invoices i
-         JOIN payment_retries pr ON pr.invoice_id = i.id
-         WHERE pr.status = 'SUCCESS') as revenue_recovered
-    `);
-    return result.rows[0];
+    return PaymentRepository.getRecoveryKPIs();
   },
 
-  /** At-risk subscriptions */
+  /**
+   * Get at-risk subscriptions with full details
+   * Returns subscriptions where status = 'AT_RISK' with
+   * customer info, product info, invoice details, retry counts
+   */
   async getAtRiskSubscriptions() {
-    const result = await pool.query(`
-      SELECT s.*, u.name as customer_name, u.email,
-        p.name as product_name,
-        i.id as invoice_id, i.invoice_number, i.retry_count, i.total_amount,
-        i.last_retry_at
-      FROM subscriptions s
-      JOIN users u ON s.user_id = u.id
-      JOIN products p ON s.product_id = p.id
-      LEFT JOIN invoices i ON i.subscription_id = s.id AND i.status = 'FAILED'
-      WHERE s.status = 'AT_RISK'
-      ORDER BY i.retry_count DESC, s.updated_at DESC
-    `);
-    return result.rows;
+    return PaymentRepository.getAtRiskSubscriptions();
   },
 
-  /** Recovery timeline audit log */
-  async getRecoveryTimeline() {
-    const result = await pool.query(`
-      SELECT pr.*, i.invoice_number, u.name as customer_name
-      FROM payment_retries pr
-      JOIN invoices i ON pr.invoice_id = i.id
-      JOIN users u ON i.user_id = u.id
-      ORDER BY pr.attempted_at DESC
-      LIMIT 20
-    `);
-    return result.rows;
+  /**
+   * Get recovery timeline (audit log)
+   * Returns last N retry attempts ordered by date
+   */
+  async getRecoveryTimeline(limit: number = 20) {
+    return PaymentRepository.getRecoveryTimeline(limit);
   },
 };

@@ -1,29 +1,29 @@
--- OdooPulse Seed Data — matches frontend mockData.ts
+﻿-- OdooPulse Seed Data â€” matches frontend mockData.ts
 -- Password for all seed users: "password123" (bcrypt hash of "password123")
 
 -- Admin Users
 INSERT INTO users (name, email, password_hash, phone, company, role, department, status, last_login) VALUES
-('Priya Sharma',  'priya@odoopulse.in',  '$2b$10$j6nGuZdidCbfAkmh0fIarubfmFiBuBmw7dxyTMeTxq2XbxcJU1dE2', '+91 99999 11111', 'OdooPulse', 'SUPER_ADMIN', 'Engineering', 'ACTIVE', '2025-02-20 14:30:00+05:30'),
-('Arjun Mehta',   'arjun@odoopulse.in',  '$2b$10$j6nGuZdidCbfAkmh0fIarubfmFiBuBmw7dxyTMeTxq2XbxcJU1dE2', '+91 99999 22222', 'OdooPulse', 'ADMIN',       'Sales',       'ACTIVE', '2025-02-20 11:15:00+05:30'),
-('Sneha Patil',   'sneha@odoopulse.in',  '$2b$10$j6nGuZdidCbfAkmh0fIarubfmFiBuBmw7dxyTMeTxq2XbxcJU1dE2', '+91 99999 33333', 'OdooPulse', 'MANAGER',     'Support',     'ACTIVE', '2025-02-19 16:45:00+05:30'),
-('Vikram Singh',  'vikram@odoopulse.in', '$2b$10$j6nGuZdidCbfAkmh0fIarubfmFiBuBmw7dxyTMeTxq2XbxcJU1dE2', '+91 99999 44444', 'OdooPulse', 'SUPPORT',     'Support',     'ACTIVE', '2025-02-18 09:20:00+05:30'),
-('Anita Desai',   'anita@odoopulse.in',  '$2b$10$j6nGuZdidCbfAkmh0fIarubfmFiBuBmw7dxyTMeTxq2XbxcJU1dE2', '+91 99999 55555', 'OdooPulse', 'MANAGER',     'Finance',     'INACTIVE', '2025-02-15 13:00:00+05:30'),
-('Rahul Gupta',   'rahul@odoopulse.in',  '$2b$10$j6nGuZdidCbfAkmh0fIarubfmFiBuBmw7dxyTMeTxq2XbxcJU1dE2', '+91 99999 66666', 'OdooPulse', 'ADMIN',       'Operations',  'ACTIVE', '2025-02-20 10:00:00+05:30');
+('Priya Sharma',  'priya@odoopulse.in',  '$2b$10$mrKQuYPAhHIDZjpdtgJu0.rdNNwo8rcnuf0BiBfCoDv6NqzcZq/IG', '+91 99999 11111', 'OdooPulse', 'SUPER_ADMIN', 'Engineering', 'ACTIVE', '2025-02-20 14:30:00+05:30'),
+('Arjun Mehta',   'arjun@odoopulse.in',  '$2b$10$mrKQuYPAhHIDZjpdtgJu0.rdNNwo8rcnuf0BiBfCoDv6NqzcZq/IG', '+91 99999 22222', 'OdooPulse', 'ADMIN',       'Sales',       'ACTIVE', '2025-02-20 11:15:00+05:30'),
+('Sneha Patil',   'sneha@odoopulse.in',  '$2b$10$mrKQuYPAhHIDZjpdtgJu0.rdNNwo8rcnuf0BiBfCoDv6NqzcZq/IG', '+91 99999 33333', 'OdooPulse', 'MANAGER',     'Support',     'ACTIVE', '2025-02-19 16:45:00+05:30'),
+('Vikram Singh',  'vikram@odoopulse.in', '$2b$10$mrKQuYPAhHIDZjpdtgJu0.rdNNwo8rcnuf0BiBfCoDv6NqzcZq/IG', '+91 99999 44444', 'OdooPulse', 'SUPPORT',     'Support',     'ACTIVE', '2025-02-18 09:20:00+05:30'),
+('Anita Desai',   'anita@odoopulse.in',  '$2b$10$mrKQuYPAhHIDZjpdtgJu0.rdNNwo8rcnuf0BiBfCoDv6NqzcZq/IG', '+91 99999 55555', 'OdooPulse', 'MANAGER',     'Finance',     'INACTIVE', '2025-02-15 13:00:00+05:30'),
+('Rahul Gupta',   'rahul@odoopulse.in',  '$2b$10$mrKQuYPAhHIDZjpdtgJu0.rdNNwo8rcnuf0BiBfCoDv6NqzcZq/IG', '+91 99999 66666', 'OdooPulse', 'ADMIN',       'Operations',  'ACTIVE', '2025-02-20 10:00:00+05:30');
 
 -- Customer Users (matching mock subscriptions)
 INSERT INTO users (name, email, password_hash, phone, company, gst_number, role, status) VALUES
-('Rajesh Kumar',    'rajesh.kumar@acmecorp.in',     '$2b$10$j6nGuZdidCbfAkmh0fIarubfmFiBuBmw7dxyTMeTxq2XbxcJU1dE2', '+91 98765 43210', 'Acme Corp',        '27AABCU9603R1ZM', 'CUSTOMER', 'ACTIVE'),
-('Arun Verma',      'arun@techstart.in',            '$2b$10$j6nGuZdidCbfAkmh0fIarubfmFiBuBmw7dxyTMeTxq2XbxcJU1dE2', '+91 98765 43211', 'TechStart Inc',    '29AABCT1234R1Z1', 'CUSTOMER', 'ACTIVE'),
-('Meera Joshi',     'meera@globaltrade.in',         '$2b$10$j6nGuZdidCbfAkmh0fIarubfmFiBuBmw7dxyTMeTxq2XbxcJU1dE2', '+91 98765 43212', 'GlobalTrade Ltd',  '27AABCG5678R1Z2', 'CUSTOMER', 'ACTIVE'),
-('Suresh Nair',     'suresh@financehub.in',         '$2b$10$j6nGuZdidCbfAkmh0fIarubfmFiBuBmw7dxyTMeTxq2XbxcJU1dE2', '+91 98765 43213', 'FinanceHub',       '32AABCF9012R1Z3', 'CUSTOMER', 'ACTIVE'),
-('Deepa Rao',       'deepa@retailmax.in',           '$2b$10$j6nGuZdidCbfAkmh0fIarubfmFiBuBmw7dxyTMeTxq2XbxcJU1dE2', '+91 98765 43214', 'RetailMax',        '29AABCR3456R1Z4', 'CUSTOMER', 'ACTIVE'),
-('Kiran Deshmukh',  'kiran@mediaflow.in',           '$2b$10$j6nGuZdidCbfAkmh0fIarubfmFiBuBmw7dxyTMeTxq2XbxcJU1dE2', '+91 98765 43215', 'MediaFlow',        '27AABCM7890R1Z5', 'CUSTOMER', 'ACTIVE'),
-('Nitin Shah',      'nitin@buildright.in',          '$2b$10$j6nGuZdidCbfAkmh0fIarubfmFiBuBmw7dxyTMeTxq2XbxcJU1dE2', '+91 98765 43216', 'BuildRight Co',    '24AABCB1234R1Z6', 'CUSTOMER', 'ACTIVE'),
-('Ravi Iyer',       'ravi@datadriven.in',           '$2b$10$j6nGuZdidCbfAkmh0fIarubfmFiBuBmw7dxyTMeTxq2XbxcJU1dE2', '+91 98765 43217', 'DataDriven LLC',   '27AABCD5678R1Z7', 'CUSTOMER', 'ACTIVE'),
-('Pooja Menon',     'pooja@novatech.in',            '$2b$10$j6nGuZdidCbfAkmh0fIarubfmFiBuBmw7dxyTMeTxq2XbxcJU1dE2', '+91 98765 43218', 'NovaTech Systems', '29AABCN9012R1Z8', 'CUSTOMER', 'ACTIVE'),
-('Amit Patel',      'amit@cloudnine.in',            '$2b$10$j6nGuZdidCbfAkmh0fIarubfmFiBuBmw7dxyTMeTxq2XbxcJU1dE2', '+91 98765 43219', 'CloudNine Ltd',    '27AABCC3456R1Z9', 'CUSTOMER', 'ACTIVE'),
-('Sanjay Kulkarni', 'sanjay@urbanretail.in',        '$2b$10$j6nGuZdidCbfAkmh0fIarubfmFiBuBmw7dxyTMeTxq2XbxcJU1dE2', '+91 98765 43220', 'UrbanRetail',      '27AABCU7890R1ZA', 'CUSTOMER', 'ACTIVE'),
-('Lakshmi Reddy',   'lakshmi@greenleaf.in',         '$2b$10$j6nGuZdidCbfAkmh0fIarubfmFiBuBmw7dxyTMeTxq2XbxcJU1dE2', '+91 98765 43221', 'GreenLeaf Farms',  '36AABCG1234R1ZB', 'CUSTOMER', 'ACTIVE');
+('Rajesh Kumar',    'rajesh.kumar@acmecorp.in',     '$2b$10$mrKQuYPAhHIDZjpdtgJu0.rdNNwo8rcnuf0BiBfCoDv6NqzcZq/IG', '+91 98765 43210', 'Acme Corp',        '27AABCU9603R1ZM', 'CUSTOMER', 'ACTIVE'),
+('Arun Verma',      'arun@techstart.in',            '$2b$10$mrKQuYPAhHIDZjpdtgJu0.rdNNwo8rcnuf0BiBfCoDv6NqzcZq/IG', '+91 98765 43211', 'TechStart Inc',    '29AABCT1234R1Z1', 'CUSTOMER', 'ACTIVE'),
+('Meera Joshi',     'meera@globaltrade.in',         '$2b$10$mrKQuYPAhHIDZjpdtgJu0.rdNNwo8rcnuf0BiBfCoDv6NqzcZq/IG', '+91 98765 43212', 'GlobalTrade Ltd',  '27AABCG5678R1Z2', 'CUSTOMER', 'ACTIVE'),
+('Suresh Nair',     'suresh@financehub.in',         '$2b$10$mrKQuYPAhHIDZjpdtgJu0.rdNNwo8rcnuf0BiBfCoDv6NqzcZq/IG', '+91 98765 43213', 'FinanceHub',       '32AABCF9012R1Z3', 'CUSTOMER', 'ACTIVE'),
+('Deepa Rao',       'deepa@retailmax.in',           '$2b$10$mrKQuYPAhHIDZjpdtgJu0.rdNNwo8rcnuf0BiBfCoDv6NqzcZq/IG', '+91 98765 43214', 'RetailMax',        '29AABCR3456R1Z4', 'CUSTOMER', 'ACTIVE'),
+('Kiran Deshmukh',  'kiran@mediaflow.in',           '$2b$10$mrKQuYPAhHIDZjpdtgJu0.rdNNwo8rcnuf0BiBfCoDv6NqzcZq/IG', '+91 98765 43215', 'MediaFlow',        '27AABCM7890R1Z5', 'CUSTOMER', 'ACTIVE'),
+('Nitin Shah',      'nitin@buildright.in',          '$2b$10$mrKQuYPAhHIDZjpdtgJu0.rdNNwo8rcnuf0BiBfCoDv6NqzcZq/IG', '+91 98765 43216', 'BuildRight Co',    '24AABCB1234R1Z6', 'CUSTOMER', 'ACTIVE'),
+('Ravi Iyer',       'ravi@datadriven.in',           '$2b$10$mrKQuYPAhHIDZjpdtgJu0.rdNNwo8rcnuf0BiBfCoDv6NqzcZq/IG', '+91 98765 43217', 'DataDriven LLC',   '27AABCD5678R1Z7', 'CUSTOMER', 'ACTIVE'),
+('Pooja Menon',     'pooja@novatech.in',            '$2b$10$mrKQuYPAhHIDZjpdtgJu0.rdNNwo8rcnuf0BiBfCoDv6NqzcZq/IG', '+91 98765 43218', 'NovaTech Systems', '29AABCN9012R1Z8', 'CUSTOMER', 'ACTIVE'),
+('Amit Patel',      'amit@cloudnine.in',            '$2b$10$mrKQuYPAhHIDZjpdtgJu0.rdNNwo8rcnuf0BiBfCoDv6NqzcZq/IG', '+91 98765 43219', 'CloudNine Ltd',    '27AABCC3456R1Z9', 'CUSTOMER', 'ACTIVE'),
+('Sanjay Kulkarni', 'sanjay@urbanretail.in',        '$2b$10$mrKQuYPAhHIDZjpdtgJu0.rdNNwo8rcnuf0BiBfCoDv6NqzcZq/IG', '+91 98765 43220', 'UrbanRetail',      '27AABCU7890R1ZA', 'CUSTOMER', 'ACTIVE'),
+('Lakshmi Reddy',   'lakshmi@greenleaf.in',         '$2b$10$mrKQuYPAhHIDZjpdtgJu0.rdNNwo8rcnuf0BiBfCoDv6NqzcZq/IG', '+91 98765 43221', 'GreenLeaf Farms',  '36AABCG1234R1ZB', 'CUSTOMER', 'ACTIVE');
 
 -- Addresses for Rajesh Kumar (user_id = 7)
 INSERT INTO addresses (user_id, label, line1, line2, city, state, pin_code, is_default) VALUES
@@ -91,13 +91,13 @@ INSERT INTO payments (payment_ref, invoice_id, user_id, amount, method, status) 
 ('PAY-006', 6, 12, 10200.00, 'DEBIT_CARD',  'PENDING'),
 ('PAY-007', 3, 9,  14400.00, 'UPI',         'REFUNDED');
 
--- Payment Retries (for GlobalTrade — 3 retries all failed)
+-- Payment Retries (for GlobalTrade â€” 3 retries all failed)
 INSERT INTO payment_retries (invoice_id, payment_id, attempt_number, status, failure_reason) VALUES
 (3, NULL, 1, 'FAILED', 'Gateway timeout'),
 (3, NULL, 2, 'FAILED', 'Insufficient funds'),
 (3, NULL, 3, 'FAILED', 'Bank declined');
 
--- Payment Retries for RetailMax — 2 retries, both failed
+-- Payment Retries for RetailMax â€” 2 retries, both failed
 INSERT INTO payment_retries (invoice_id, payment_id, attempt_number, status, failure_reason) VALUES
 (5, NULL, 1, 'FAILED', 'Network error'),
 (5, NULL, 2, 'FAILED', 'Card expired');

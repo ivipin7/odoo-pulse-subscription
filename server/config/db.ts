@@ -7,21 +7,27 @@ export const pool = new Pool({
   database: env.DB_NAME,
   user: env.DB_USER,
   password: env.DB_PASSWORD,
+  connectionTimeoutMillis: 5000,
+  max: 10,
 });
 
-let dbConnected = false;
+// Prevent unhandled error crashes from idle pool clients
+pool.on('error', () => {
+  // Silently ignore idle client errors — server stays alive
+});
 
-pool.query('SELECT NOW()')
-  .then(() => {
-    dbConnected = true;
+/**
+ * Test connection — call AFTER server is listening.
+ * Never throws, never crashes the server.
+ */
+export async function testDbConnection(): Promise<boolean> {
+  try {
+    await pool.query('SELECT NOW()');
     console.log('✅ PostgreSQL connected');
-  })
-  .catch((err) => {
-    console.error('❌ PostgreSQL connection failed:', err.message);
-    console.error('⚠️  Server will stay up but DB calls will fail.');
-    console.error('   → Edit server/.env with your real DB_PASSWORD');
-    console.error('   → Make sure PostgreSQL is running on localhost:5432');
-    console.error('   → Run: psql -U postgres -c "CREATE DATABASE odoopulse;"');
-  });
-
-export { dbConnected };
+    return true;
+  } catch {
+    console.error('❌ PostgreSQL not available — DB queries will fail');
+    console.warn('   → Update server/.env with correct DB credentials');
+    return false;
+  }
+}
