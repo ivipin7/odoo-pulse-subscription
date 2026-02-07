@@ -28,6 +28,8 @@ import AdminDiscounts from "./pages/admin/Discounts";
 import AdminTaxes from "./pages/admin/Taxes";
 import AdminUsers from "./pages/admin/Users";
 import AdminReports from "./pages/admin/Reports";
+import AdminInvoiceDetail from "./pages/admin/InvoiceDetail";
+import AdminSubscriptionDetail from "./pages/admin/SubscriptionDetail";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -73,8 +75,10 @@ const App = () => (
             >
               <Route index element={<AdminDashboard />} />
               <Route path="subscriptions" element={<AdminSubscriptions />} />
+              <Route path="subscriptions/:id" element={<AdminSubscriptionDetail />} />
               <Route path="at-risk" element={<AdminAtRisk />} />
               <Route path="invoices" element={<AdminInvoices />} />
+              <Route path="invoices/:id" element={<AdminInvoiceDetail />} />
               <Route path="payments" element={<AdminPayments />} />
               <Route path="quotations" element={<AdminQuotations />} />
               <Route path="products" element={<AdminProducts />} />

@@ -1,10 +1,12 @@
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { useSubscriptions } from "@/hooks/useApi";
+import { useNavigate } from "react-router-dom";
 
 const AdminSubscriptions = () => {
   const { data: subsData } = useSubscriptions();
   const subscriptions = (subsData ?? []) as any[];
+  const navigate = useNavigate();
   return (
     <div>
       <PageHeader title="Subscriptions" />
@@ -23,9 +25,9 @@ const AdminSubscriptions = () => {
           </thead>
           <tbody>
             {subscriptions.map((sub) => (
-              <tr key={sub.id}>
+              <tr key={sub.id} className="cursor-pointer hover:bg-accent/50" onClick={() => navigate(`/admin/subscriptions/${sub.id}`)}>
                 <td>
-                  <span className="font-mono font-medium text-foreground">{sub.id}</span>
+                  <span className="font-mono font-medium text-primary hover:underline">{sub.id}</span>
                 </td>
                 <td className="font-medium text-foreground">{sub.customer}</td>
                 <td className="text-muted-foreground">{sub.plan}</td>
